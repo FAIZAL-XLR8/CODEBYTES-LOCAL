@@ -541,7 +541,7 @@ This is called debouncing.
                       </svg>
                       <h3 className="text-xl font-semibold text-white">Reference Solutions</h3>
                     </div>
-                    
+                   
                     {problem.referenceSolution.map((solution, index) => (
                       <div key={index} className="bg-[#282828] rounded-lg border border-[#3d3d3d] overflow-hidden">
                         <div className="px-4 py-3 bg-[#1e1e1e] border-b border-[#3d3d3d] flex items-center justify-between">

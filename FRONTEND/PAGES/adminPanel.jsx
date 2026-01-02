@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import axiosClient from "../src/utils/axiosClient";
 import axios from "axios";
-
+import {Link} from "react-router"
 const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState("create");
   const [problems, setProblems] = useState([]);
@@ -387,9 +387,7 @@ const AdminPanel = () => {
       <nav className="bg-[#282828] border-b border-[#3d3d3d] px-6 py-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-white">Admin Panel</h1>
-          <a href="/" className="btn btn-sm btn-ghost">
-            Back to Home
-          </a>
+         <Link to ="/">Back to Home</Link>
         </div>
       </nav>
 
