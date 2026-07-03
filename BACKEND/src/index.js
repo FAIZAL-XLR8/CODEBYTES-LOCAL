@@ -6,10 +6,22 @@ const apiLimiter = require("./RATE-LIMITERS/apiLimiter")
 const app = express();
 
 const cors = require('cors');
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin :  "http://localhost:5173",
-  credentials : true,
-}))
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.some(ao => origin.startsWith(ao))) {
+      callback(null, true);
+    } else {
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    }
+  },
+  credentials: true,
+}));
 app.use(express.json());
 app.use(cookieParser());
 // app.use(apiLimiter);
