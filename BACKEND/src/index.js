@@ -19,17 +19,20 @@ const redisClient = require("./config/redis");
 const problemRoute = require("./Routes/problem");
 const submitRoute = require("./Routes/submit");
 const aiRouter = require ("../src/Routes/ai")
+const videoRouter = require("./Routes/videoCreator");
+const discussionRoute = require("./Routes/discussion");
+
 app.use((req, res, next) => {
   console.log("REQ:", req.method, req.url);
   next();
 });
-const videoRouter = require("./Routes/videoCreator");
 
 app.use("/submission", submitRoute);
 app.use("/user", authRoute);
 app.use("/problem", problemRoute);
 app.use("/ai", aiRouter);
 app.use("/video", videoRouter);
+app.use("/discussion", discussionRoute);
 async function initialiseConnection() {
   try {
     await Promise.all([connectDB(), redisClient.connect()]);

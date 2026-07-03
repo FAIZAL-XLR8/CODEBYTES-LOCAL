@@ -110,16 +110,19 @@ const register = async (req, res) => {
       const payload = jwt.verify(token, process.env.JWT_KEY);
       const { _id, emailID } = payload;
       const user = await userCollection.findOne({ emailID });
-        const replyUser = {
-        username: user.firstName,  // Changed from assignedUser to user
+      const replyUser = {
+        username: user.firstName,
+        firstName: user.firstName,
+        lastName: user.lastName || "",
         email: user.emailID, 
         problemSolved: user.problemSolved.length,
-        role : user.role
+        role : user.role,
+        createdAt: user.createdAt
       };
       
       res.status(200).send({user : replyUser});
     } catch (err) {
-      throw new Error(err.message);
+      res.status(400).send({ error: err.message });
     }
   };
   const adminRegister = async (req, res) => {
