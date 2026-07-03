@@ -1,14 +1,25 @@
 require("dotenv").config();
+
 const express = require("express");
 const cookieParser = require("cookie-parser");
+const cors = require("cors");
 const path = require("path");
+const fs = require("fs");
 
 const userCollection = require("./Schemas/userSchema");
 const apiLimiter = require("./RATE-LIMITERS/apiLimiter");
 
-const app = express();
+const connectDB = require("./config/dbConnect");
+const redisClient = require("./config/redis");
 
-const cors = require("cors");
+const authRoute = require("./Routes/userAuth");
+const problemRoute = require("./Routes/problem");
+const submitRoute = require("./Routes/submit");
+const aiRouter = require("./Routes/ai");
+const videoRouter = require("./Routes/videoCreator");
+const discussionRoute = require("./Routes/discussion");
+
+const app = express();
 
 const allowedOrigins = [
   "http://localhost:5173",
@@ -31,22 +42,15 @@ app.use(
 
 app.use(express.json());
 app.use(cookieParser());
- app.use(apiLimiter);
+app.use(apiLimiter);
 
-const authRoute = require("./Routes/userAuth");
-const connectDB = require("./config/dbConnect");
-const redisClient = require("./config/redis");
-const problemRoute = require("./Routes/problem");
-const submitRoute = require("./Routes/submit");
-const aiRouter = require("./Routes/ai");
-const videoRouter = require("./Routes/videoCreator");
-const discussionRoute = require("./Routes/discussion");
-
+// Logging middleware
 app.use((req, res, next) => {
   console.log("REQ:", req.method, req.url);
   next();
 });
 
+// ================= API ROUTES =================
 
 app.use("/submission", submitRoute);
 app.use("/user", authRoute);
@@ -55,29 +59,42 @@ app.use("/ai", aiRouter);
 app.use("/video", videoRouter);
 app.use("/discussion", discussionRoute);
 
-
+// ================= FRONTEND =================
 
 const frontendPath = path.join(__dirname, "../../FRONTEND/dist");
 
+console.log("Frontend Path:", frontendPath);
+console.log("Frontend Exists:", fs.existsSync(frontendPath));
+console.log(
+  "Index Exists:",
+  fs.existsSync(path.join(frontendPath, "index.html"))
+);
+
 app.use(express.static(frontendPath));
 
-app.get("*", (req, res) => {
+// IMPORTANT: This must be LAST (Express 5)
+app.use((req, res) => {
   res.sendFile(path.join(frontendPath, "index.html"));
 });
 
-
+// ================= SERVER =================
 
 async function initialiseConnection() {
   try {
-    await Promise.all([connectDB(), redisClient.connect()]);
+    await Promise.all([
+      connectDB(),
+      redisClient.connect()
+    ]);
 
     console.log("Database and Redis activated!");
 
     app.listen(process.env.PORT || 5000, () => {
-      console.log(`Listening on port ${process.env.PORT || 5000}`);
+      console.log(
+        `Listening on port ${process.env.PORT || 5000}`
+      );
     });
   } catch (err) {
-    console.log(err);
+    console.error(err);
   }
 }
 
