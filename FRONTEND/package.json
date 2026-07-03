@@ -27,7 +27,7 @@
     "react-router": "^7.10.1",
     "tailwindcss": "^4.1.18",
     "zod": "^4.1.13",
-    "@vitejs/plugin-react": "^5.1.1"
+    "@vitejs/plugin-react": "^5.0.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
