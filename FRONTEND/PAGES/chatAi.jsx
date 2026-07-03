@@ -1,21 +1,75 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Loader2, Sparkles } from 'lucide-react';
 
+export const renderInlineCode = (text) => {
+  const parts = text.split('`');
+  return parts.map((part, index) => {
+    if (index % 2 === 1) {
+      return (
+        <code key={index} className="bg-zinc-800 text-zinc-100 px-1.5 py-0.5 rounded font-mono text-xs border border-zinc-700/50">
+          {part}
+        </code>
+      );
+    }
+    return part;
+  });
+};
 
-const AIChatAssistant = ({ problem , getCurrentCode}) => {
-  
+export const renderMessageContent = (content) => {
+  if (!content) return "";
+
+  const lines = content.split('\n');
+  return lines.map((line, lineIndex) => {
+    let cleanLine = line;
+    const isBullet = /^\s*[\*\-]\s+/.test(cleanLine);
+    if (isBullet) {
+      cleanLine = cleanLine.replace(/^\s*[\*\-]\s+/, "");
+    }
+
+    const parts = cleanLine.split('**');
+    const formattedParts = parts.map((part, partIndex) => {
+      if (partIndex % 2 === 1) {
+        return (
+          <strong key={partIndex} className="font-extrabold text-white">
+            {renderInlineCode(part)}
+          </strong>
+        );
+      }
+      return renderInlineCode(part);
+    });
+
+    if (isBullet) {
+      return (
+        <div key={lineIndex} className="flex items-start gap-2 ml-2 my-1 text-sm text-zinc-300">
+          <span className="text-indigo-400 mt-1.5 shrink-0 select-none">•</span>
+          <div className="flex-1">{formattedParts}</div>
+        </div>
+      );
+    }
+
+    return (
+      <div key={lineIndex} className="min-h-[1.2rem] my-1 text-sm text-zinc-300 leading-relaxed">
+        {formattedParts}
+      </div>
+    );
+  });
+};
+
+
+const AIChatAssistant = ({ problem, getCurrentCode }) => {
+
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef(null);
 
-  
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
- 
+
   useEffect(() => {
     if (isOpen && messages.length === 0) {
       setMessages([
@@ -32,14 +86,14 @@ const AIChatAssistant = ({ problem , getCurrentCode}) => {
 
     const userMessage = input.trim();
     setInput('');
-    
+
 
     const newMessages = [...messages, { role: 'user', content: userMessage }];
     setMessages(newMessages);
     setLoading(true);
 
     try {
-     const currentCode = getCurrentCode();
+      const currentCode = getCurrentCode();
       const systemPrompt = `You are a helpful coding assistant for the problem "${problem?.title}" (Difficulty: ${problem?.difficulty}).
 
 Problem Description: ${problem?.description}
@@ -72,16 +126,16 @@ Guidelines:
       }
 
       const data = await response.json();
-     
-     
+
+
       const assistantMessage = data.reply || 'Sorry, I could not generate a response.';
 
       setMessages(prev => [...prev, { role: 'model', content: assistantMessage }]);
     } catch (error) {
       console.error('Error calling Gemini AI:', error);
-      setMessages(prev => [...prev, { 
-        role: 'model', 
-        content: 'Sorry, I encountered an error. Please try again or check your connection.' 
+      setMessages(prev => [...prev, {
+        role: 'model',
+        content: 'Sorry, I encountered an error. Please try again or check your connection.'
       }]);
     } finally {
       setLoading(false);
@@ -94,7 +148,7 @@ Guidelines:
       sendMessage();
     }
   };
-//quick buttons actions ke liye
+  //quick buttons actions ke liye
   const quickActions = [
     { label: 'Give me a hint', query: 'Can you give me a hint to solve this problem?' },
     { label: 'Explain approach', query: 'What approach should I use to solve this problem?' },
@@ -108,7 +162,7 @@ Guidelines:
 
   return (
     <>
-     
+
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
@@ -128,7 +182,7 @@ Guidelines:
               <Sparkles className="w-5 h-5 text-primary" />
               <div>
                 <h3 className="font-semibold text-white">AI Assistant</h3>
-                <p className="text-xs text-gray-400">Powered by Gemini</p>
+
               </div>
             </div>
             <button
@@ -147,17 +201,20 @@ Guidelines:
                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[80%] rounded-lg p-3 ${
-                    msg.role === 'user'
+                  className={`max-w-[80%] rounded-lg p-3 ${msg.role === 'user'
                       ? 'bg-primary text-primary-content'
                       : 'bg-[#1e1e1e] text-gray-200 border border-[#3d3d3d]'
-                  }`}
+                    }`}
                 >
-                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                  {msg.role === 'user' ? (
+                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                  ) : (
+                    <div className="space-y-1">{renderMessageContent(msg.content)}</div>
+                  )}
                 </div>
               </div>
             ))}
-            
+
             {loading && (
               <div className="flex justify-start">
                 <div className="bg-[#1e1e1e] rounded-lg p-3 border border-[#3d3d3d]">
@@ -165,7 +222,7 @@ Guidelines:
                 </div>
               </div>
             )}
-            
+
             <div ref={messagesEndRef} />
           </div>
 

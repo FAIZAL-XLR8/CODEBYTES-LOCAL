@@ -1,12 +1,33 @@
 import { useState, useEffect } from "react";
 import axiosClient from "../src/utils/axiosClient";
 import axios from "axios";
-import {Link} from "react-router"
+import { Link } from "react-router";
+import toast from "react-hot-toast";
+import ConfirmDialog from "../src/components/ConfirmDialog";
 const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState("create");
   const [problems, setProblems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState(null);
+
+  const [confirmConfig, setConfirmConfig] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: () => {},
+  });
+
+  const triggerConfirm = (title, message, onConfirm) => {
+    setConfirmConfig({
+      isOpen: true,
+      title,
+      message,
+      onConfirm: () => {
+        onConfirm();
+        setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
+      },
+    });
+  };
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadedVideo, setUploadedVideo] = useState(null);
@@ -62,8 +83,11 @@ const AdminPanel = () => {
   };
 
   const showMessage = (text, type = "success") => {
-    setMessage({ text, type });
-    setTimeout(() => setMessage(null), 5000);
+    if (type === "success") {
+      toast.success(text);
+    } else {
+      toast.error(typeof text === "string" ? text : JSON.stringify(text));
+    }
   };
 
   // Handle input changes
@@ -203,29 +227,27 @@ const AdminPanel = () => {
   };
 
   // Delete editorial
-  const handleDeleteEditorial = async (problemId) => {
+  const handleDeleteEditorial = (problemId) => {
     const problem = problems.find((p) => p._id === problemId);
-    if (
-      !window.confirm(
-        `Are you sure you want to delete the editorial video for "${problem?.title}"?`
-      )
-    ) {
-      return;
-    }
-
-    try {
-      setLoading(true);
-      await axiosClient.delete(`/video/${problemId}`);
-      showMessage("Editorial deleted successfully!", "success");
-    } catch (error) {
-      console.error("Error deleting editorial:", error);
-      showMessage(
-        error.response?.data?.error || "Error deleting editorial",
-        "error"
-      );
-    } finally {
-      setLoading(false);
-    }
+    triggerConfirm(
+      "Delete Editorial",
+      `Are you sure you want to delete the editorial video for "${problem?.title}"?`,
+      async () => {
+        try {
+          setLoading(true);
+          await axiosClient.delete(`/video/${problemId}`);
+          showMessage("Editorial deleted successfully!", "success");
+        } catch (error) {
+          console.error("Error deleting editorial:", error);
+          showMessage(
+            error.response?.data?.error || "Error deleting editorial",
+            "error"
+          );
+        } finally {
+          setLoading(false);
+        }
+      }
+    );
   };
 
   // Create problem
@@ -334,21 +356,24 @@ const AdminPanel = () => {
   };
 
   // Delete problem
-  const handleDelete = async (problemId) => {
-    if (!window.confirm("Are you sure you want to delete this problem?")) {
-      return;
-    }
-    try {
-      setLoading(true);
-      await axiosClient.delete(`/problem/delete/${problemId}`);
-      showMessage("Problem deleted successfully!", "success");
-      fetchProblems();
-    } catch (error) {
-      console.error("Error deleting problem:", error);
-      showMessage(error.response?.data || "Error deleting problem", "error");
-    } finally {
-      setLoading(false);
-    }
+  const handleDelete = (problemId) => {
+    triggerConfirm(
+      "Delete Problem",
+      "Are you sure you want to delete this problem? This action cannot be undone.",
+      async () => {
+        try {
+          setLoading(true);
+          await axiosClient.delete(`/problem/delete/${problemId}`);
+          showMessage("Problem deleted successfully!", "success");
+          fetchProblems();
+        } catch (error) {
+          console.error("Error deleting problem:", error);
+          showMessage(error.response?.data || "Error deleting problem", "error");
+        } finally {
+          setLoading(false);
+        }
+      }
+    );
   };
 
   const resetForm = () => {
@@ -382,38 +407,37 @@ const AdminPanel = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#1a1a1a] text-gray-100">
+    <div className="min-h-screen bg-zinc-950 text-zinc-100">
       {/* Header */}
-      <nav className="bg-[#282828] border-b border-[#3d3d3d] px-6 py-4">
+      <nav className="relative bg-zinc-900 border-b border-zinc-800/80 px-6 py-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-white">Admin Panel</h1>
-         <Link to ="/">Back to Home</Link>
+          <h1 className="text-2xl font-black bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">Admin Panel</h1>
+          
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:flex items-center gap-2 px-4 py-1.5 bg-zinc-950/50 rounded-full border border-zinc-800/80 shadow-inner group hover:border-indigo-500/40 transition-all cursor-default select-none">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500/80 animate-pulse"></div>
+            <span className="text-[15px] m:text-[8px] font-mono font-medium text-zinc-400 tracking-wider uppercase group-hover:text-indigo-300 transition-colors">
+              Everything is just <span className="text-emerald-400 font-bold">0</span>s and <span className="text-emerald-400 font-bold">1</span>s
+            </span>
+          </div>
+
+          <Link to="/" className="text-zinc-400 hover:text-indigo-400 text-sm font-medium transition-colors">Back to Home</Link>
         </div>
       </nav>
 
-      {/* Message Toast */}
-      {message && (
-        <div
-          className={`alert ${
-            message.type === "success" ? "alert-success" : "alert-error"
-          } fixed top-20 right-6 w-96 shadow-lg z-50`}
-        >
-          <span>{message.text}</span>
-        </div>
-      )}
+      {/* Messages are handled globally via react-hot-toast */}
 
       {/* Tabs */}
-      <div className="bg-[#282828] border-b border-[#3d3d3d]">
+      <div className="bg-zinc-900/40 border-b border-zinc-800/80">
         <div className="flex px-6">
           <button
             onClick={() => {
               setActiveTab("create");
               resetForm();
             }}
-            className={`px-6 py-4 font-medium transition-colors ${
+            className={`px-6 py-4 font-semibold text-sm transition-all border-b-2 ${
               activeTab === "create"
-                ? "text-white border-b-2 border-primary bg-[#2d2d2d]"
-                : "text-gray-400 hover:text-gray-200"
+                ? "text-indigo-400 border-indigo-500 bg-zinc-900/20"
+                : "text-zinc-400 hover:text-zinc-200 border-transparent hover:bg-zinc-900/10"
             }`}
           >
             Create Problem
@@ -423,10 +447,10 @@ const AdminPanel = () => {
               setActiveTab("update");
               resetForm();
             }}
-            className={`px-6 py-4 font-medium transition-colors ${
+            className={`px-6 py-4 font-semibold text-sm transition-all border-b-2 ${
               activeTab === "update"
-                ? "text-white border-b-2 border-primary bg-[#2d2d2d]"
-                : "text-gray-400 hover:text-gray-200"
+                ? "text-indigo-400 border-indigo-500 bg-zinc-900/20"
+                : "text-zinc-400 hover:text-zinc-200 border-transparent hover:bg-zinc-900/10"
             }`}
           >
             Update Problem
@@ -436,20 +460,20 @@ const AdminPanel = () => {
               setActiveTab("editorial");
               resetEditorialForm();
             }}
-            className={`px-6 py-4 font-medium transition-colors ${
+            className={`px-6 py-4 font-semibold text-sm transition-all border-b-2 ${
               activeTab === "editorial"
-                ? "text-white border-b-2 border-primary bg-[#2d2d2d]"
-                : "text-gray-400 hover:text-gray-200"
+                ? "text-indigo-400 border-indigo-500 bg-zinc-900/20"
+                : "text-zinc-400 hover:text-zinc-200 border-transparent hover:bg-zinc-900/10"
             }`}
           >
             Editorial
           </button>
           <button
             onClick={() => setActiveTab("delete")}
-            className={`px-6 py-4 font-medium transition-colors ${
+            className={`px-6 py-4 font-semibold text-sm transition-all border-b-2 ${
               activeTab === "delete"
-                ? "text-white border-b-2 border-primary bg-[#2d2d2d]"
-                : "text-gray-400 hover:text-gray-200"
+                ? "text-indigo-400 border-indigo-500 bg-zinc-900/20"
+                : "text-zinc-400 hover:text-zinc-200 border-transparent hover:bg-zinc-900/10"
             }`}
           >
             Delete Problem
@@ -1295,6 +1319,14 @@ const AdminPanel = () => {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmConfig.isOpen}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        onConfirm={confirmConfig.onConfirm}
+        onCancel={() => setConfirmConfig((prev) => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 };
