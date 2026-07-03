@@ -23,7 +23,7 @@ const tokenVerify = async (req, res, next) => {
     req.user = user; //easier to access user after authentication
     next();
   } catch (err) {
-    res.send(err.message);
+    res.status(401).json({ error: err.message });
   }
 };
 module.exports = tokenVerify;

@@ -82,7 +82,12 @@ const register = async (req, res) => {
         role : user.role
       };
       
-      res.cookie("token", token, { maxAge: 30 * 60 * 1000 });
+      res.cookie("token", token, {
+        maxAge: 30 * 60 * 1000,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production" || true,
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      });
       res.status(200).json({ user: replyUser, message: "Login successful!" });
     } else {
       throw new Error("Invalid password!");
