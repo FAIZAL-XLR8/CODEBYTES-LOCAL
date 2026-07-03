@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send, Loader2, Sparkles } from 'lucide-react';
+import axiosClient from "../src/utils/axiosClient";
 
 export const renderInlineCode = (text) => {
   const parts = text.split('`');
@@ -108,24 +109,13 @@ Guidelines:
 - Explain time and space complexity when relevant
 `;
 
-      // Call backend API
-      const response = await fetch("http://localhost:3000/ai/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          message: userMessage,
-          systemPrompt,
-        }),
+      // Call backend API via axiosClient
+      const response = await axiosClient.post("/ai/chat", {
+        message: userMessage,
+        systemPrompt,
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = response.data;
 
 
       const assistantMessage = data.reply || 'Sorry, I could not generate a response.';
