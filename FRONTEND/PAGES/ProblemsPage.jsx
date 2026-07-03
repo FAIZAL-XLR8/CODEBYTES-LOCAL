@@ -302,7 +302,7 @@ function ProblemsPage() {
               <div className="flex items-center justify-center py-16">
                 <div className="flex flex-col items-center gap-2">
                   <img
-                    src="/{53924027-5793-46FE-B233-9311ED21AB5A}.png"
+                    src="/empty-state.png"
                     alt="Ready to level up?"
                     className="w-48 h-48 object-contain"
                   />
