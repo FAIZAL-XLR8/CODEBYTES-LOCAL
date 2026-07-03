@@ -77,7 +77,7 @@ function ProblemsPage() {
     const fetchSolvedProblems = async () => {
       try {
         const { data } = await axiosClient.get("/problem/problemSolvedByUser");
-        setSolvedProblems(data.solvedProblems);
+        setSolvedProblems(data?.solvedProblems);
       } catch (error) {
         console.error("Error fetching solved problems:", error);
       }
@@ -94,18 +94,18 @@ function ProblemsPage() {
   };
 
   const filteredProblems = (problems || []).filter((problem) => {
-    const difficultyMatch = filters.difficulty === "all" || problem.difficulty === filters.difficulty;
-    const tagMatch = filters.tag === "all" || problem.tags === filters.tag;
-    const statusMatch = filters.status === "all" || solvedProblems.some((sp) => sp._id === problem._id);
-    const searchMatch = problem.title.toLowerCase().includes(search.toLowerCase());
+    const difficultyMatch = filters?.difficulty === "all" || problem?.difficulty === filters?.difficulty;
+    const tagMatch = filters?.tag === "all" || problem?.tags === filters?.tag;
+    const statusMatch = filters?.status === "all" || solvedProblems?.some((sp) => sp?._id === problem?._id);
+    const searchMatch = (problem?.title || "").toLowerCase().includes(search?.toLowerCase());
     return difficultyMatch && tagMatch && statusMatch && searchMatch;
   });
 
-  const solvedCount = solvedProblems.length;
-  const easyCount = problems.filter(p => p.difficulty === "easy").length;
-  const mediumCount = problems.filter(p => p.difficulty === "medium").length;
-  const hardCount = problems.filter(p => p.difficulty === "hard").length;
-  const solvedPct = problems.length ? Math.round((solvedCount / problems.length) * 100) : 0;
+  const solvedCount = solvedProblems?.length;
+  const easyCount = (problems || []).filter(p => p.difficulty === "easy").length;
+  const mediumCount = (problems || []).filter(p => p.difficulty === "medium").length;
+  const hardCount = (problems || []).filter(p => p.difficulty === "hard").length;
+  const solvedPct = (problems || []).length ? Math.round((solvedCount / (problems || []).length) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-[#080d18] text-zinc-100 font-sans">
@@ -232,7 +232,7 @@ function ProblemsPage() {
             </FilterSelect>
 
             <span className="text-xs text-zinc-500 font-medium ml-1">
-              {filteredProblems.length} result{filteredProblems.length !== 1 ? "s" : ""}
+              {filteredProblems?.length} result{filteredProblems?.length !== 1 ? "s" : ""}
             </span>
           </div>
         </motion.div>
@@ -255,16 +255,16 @@ function ProblemsPage() {
 
           {/* Rows */}
           <div className="divide-y divide-zinc-800/40">
-            {filteredProblems.map((problem, index) => {
-              const isSolved = solvedProblems.some((sp) => sp._id === problem._id);
+            {filteredProblems?.map((problem, index) => {
+              const isSolved = solvedProblems?.some((sp) => sp?._id === problem?._id);
               return (
                 <motion.div
-                  key={problem._id}
+                  key={problem?._id}
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.25, delay: index * 0.04 }}
                   className="grid grid-cols-[40px_1fr_130px_120px_40px] gap-0 px-6 py-4 group hover:bg-zinc-800/30 transition-all duration-200 cursor-pointer"
-                  onClick={() => navigate(`/problem/${problem._id}`)}
+                  onClick={() => navigate(`/problem/${problem?._id}`)}
                 >
                   {/* # */}
                   <span className="text-sm text-zinc-600 font-mono self-center">{index + 1}</span>
@@ -272,18 +272,18 @@ function ProblemsPage() {
                   {/* Title */}
                   <div className="flex items-center self-center">
                     <span className="text-sm font-semibold text-zinc-200 group-hover:text-emerald-400 transition-colors leading-snug">
-                      {problem.title}
+                      {problem?.title}
                     </span>
                   </div>
 
                   {/* Difficulty */}
                   <div className="self-center">
-                    <DiffBadge level={problem.difficulty} />
+                    <DiffBadge level={problem?.difficulty} />
                   </div>
 
                   {/* Tag */}
                   <div className="self-center">
-                    <TagChip tag={problem.tags} />
+                    <TagChip tag={problem?.tags} />
                   </div>
 
                   {/* Status / Arrow */}
@@ -298,7 +298,7 @@ function ProblemsPage() {
               );
             })}
 
-            {filteredProblems.length === 0 && (
+            {filteredProblems?.length === 0 && (
               <div className="flex items-center justify-center py-16">
                 <div className="flex flex-col items-center gap-2">
                   <img
@@ -320,8 +320,8 @@ function ProblemsPage() {
           {/* Table Footer */}
           <div className="px-6 py-3 border-t border-zinc-800/60 bg-zinc-900/50 flex items-center justify-between">
             <span className="text-xs text-zinc-600">
-              Showing <span className="text-zinc-400 font-semibold">{filteredProblems.length}</span> of{" "}
-              <span className="text-zinc-400 font-semibold">{problems.length}</span> problems
+              Showing <span className="text-zinc-400 font-semibold">{filteredProblems?.length}</span> of{" "}
+              <span className="text-zinc-400 font-semibold">{problems?.length}</span> problems
             </span>
             <span className="text-xs text-zinc-600">
               {solvedCount > 0 && (
