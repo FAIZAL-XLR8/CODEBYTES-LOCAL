@@ -198,18 +198,15 @@ const ProblemPage = () => {
   useEffect(() => {
     // Don't run until problem is loaded
     if (!problem) {
-      console.log('⏸️ Waiting for problem data...');
       return;
     }
 
     // If already initialized, just load the saved code
     if (isInitialized) {
-      console.log(`✅ Already initialized: ${problemId}-${selectedLanguage}`);
       if (savedCodeForLanguage) {
 
         setCode(savedCodeForLanguage);
       } else {
-        console.log(` Initialized but no saved code - this shouldn't happen`);
       }
       return;
     }
@@ -238,7 +235,6 @@ const ProblemPage = () => {
     // 1. Code exists
     // 2. Problem is initialized (prevents saving initial boilerplate immediately)
     if (!code || !isInitialized) {
-      console.log(`⏸️ Skipping auto-save (code: ${!!code}, init: ${isInitialized})`);
       return;
       //above says
       // “Don’t save if code is empty”
@@ -246,7 +242,6 @@ const ProblemPage = () => {
     }
 
     const timeoutId = setTimeout(() => {
-      console.log(`💾 Auto-saving ${selectedLanguage} code (${code.length} chars)`);
       dispatch(saveCode({
         problemId,
         language: selectedLanguage,
@@ -278,7 +273,6 @@ This is called debouncing.
     const startCodeArray = problemData?.startCode;
 
     if (!startCodeArray || startCodeArray.length === 0) {
-      console.log('No startCode found, using default');
       setCode(getDefaultCode(language));
       return;
     }
@@ -295,10 +289,8 @@ This is called debouncing.
     );
 
     if (initialCode?.boilerCode) {
-      console.log(`📝 Found boilerplate for ${language}`);
       setCode(initialCode.boilerCode);
     } else {
-      console.log(`📝 No boilerplate found, using default for ${language}`);
       setCode(getDefaultCode(language));
     }
   };
@@ -317,7 +309,6 @@ This is called debouncing.
     const newLanguage = e.target.value;
     // Save current code before switching (if initialized)
     if (code && isInitialized) {
-      console.log(`💾 Saving ${selectedLanguage} code before switch`);
       dispatch(saveCode({
         problemId,
         language: selectedLanguage,
@@ -330,7 +321,6 @@ This is called debouncing.
   /* HANDLE EDITOR MOUNT */
   const handleEditorDidMount = (editor, monaco) => {
     editorRef.current = editor;
-    console.log('✅ Editor mounted');
   };
   const getCurrentCode = () => {
     return editorRef.current?.getValue();
@@ -338,7 +328,6 @@ This is called debouncing.
   /* RESET CODE */
   const handleResetCode = () => {
     if (problem) {
-      console.log(`🔄 Resetting ${selectedLanguage} code to boilerplate`);
       updateInitialCode(problem, selectedLanguage);
 
       // Clear from Redux
@@ -443,11 +432,10 @@ This is called debouncing.
             {problem?.title || 'Loading...'}
           </h2>
           {problem?.difficulty && (
-            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
-              problem.difficulty === 'easy' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-              problem.difficulty === 'medium' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-              'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-            }`}>{problem.difficulty}</span>
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${problem.difficulty === 'easy' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                problem.difficulty === 'medium' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                  'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+              }`}>{problem.difficulty}</span>
           )}
         </div>
 
@@ -469,15 +457,14 @@ This is called debouncing.
         <div className="w-1/2 flex flex-col border-r border-zinc-800/60 bg-[#0d1117]">
           {/* Left Tabs */}
           <div className="flex border-b border-zinc-800/60 bg-[#0a0f1a] overflow-x-auto shrink-0">
-            {['description','editorial','solutions','submissions','ai-analyser','discussion'].map((tab) => (
+            {['description', 'editorial', 'solutions', 'submissions', 'ai-analyser', 'discussion'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveLeftTab(tab)}
-                className={`px-5 py-3.5 text-xs font-semibold tracking-wide transition-all whitespace-nowrap ${
-                  activeLeftTab === tab
+                className={`px-5 py-3.5 text-xs font-semibold tracking-wide transition-all whitespace-nowrap ${activeLeftTab === tab
                     ? 'text-emerald-400 border-b-2 border-emerald-500 bg-[#0d1117]'
                     : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/30'
-                }`}
+                  }`}
               >
                 {tab === 'ai-analyser' ? 'AI Analyser' : tab.charAt(0).toUpperCase() + tab.slice(1)}
               </button>
@@ -494,11 +481,10 @@ This is called debouncing.
                     <div>
                       <h1 className="text-xl font-bold text-white mb-3">{problem.title}</h1>
                       <div className="flex items-center gap-2">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${
-                          problem.difficulty === 'easy' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                          problem.difficulty === 'medium' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                          'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                        }`}>{problem.difficulty}</span>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${problem.difficulty === 'easy' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                            problem.difficulty === 'medium' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                              'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                          }`}>{problem.difficulty}</span>
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-md bg-zinc-800 text-zinc-400 text-xs font-semibold uppercase border border-zinc-700">{problem.tags}</span>
                       </div>
                     </div>
@@ -1104,15 +1090,14 @@ This is called debouncing.
           {/* Right Tabs + Language Selector */}
           <div className="flex items-center justify-between border-b border-zinc-800/60 bg-[#0a0f1a] shrink-0">
             <div className="flex">
-              {['code','testcase','result'].map((tab) => (
+              {['code', 'testcase', 'result'].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveRightTab(tab)}
-                  className={`px-5 py-3.5 text-xs font-semibold tracking-wide transition-all whitespace-nowrap ${
-                    activeRightTab === tab
+                  className={`px-5 py-3.5 text-xs font-semibold tracking-wide transition-all whitespace-nowrap ${activeRightTab === tab
                       ? 'text-emerald-400 border-b-2 border-emerald-500 bg-[#0d1117]'
                       : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/30'
-                  }`}
+                    }`}
                 >
                   {tab === 'code' ? 'Code' : tab === 'testcase' ? 'Test Results' : 'Submission'}
                 </button>
@@ -1250,19 +1235,17 @@ This is called debouncing.
                             return (
                               <div
                                 key={index}
-                                className={`p-4 rounded-xl border ${
-                                  test.status === 'Accepted'
+                                className={`p-4 rounded-xl border ${test.status === 'Accepted'
                                     ? 'border-emerald-500/30 bg-emerald-500/5'
                                     : 'border-rose-500/30 bg-rose-500/5'
-                                }`}
+                                  }`}
                               >
                                 <div className="flex items-center justify-between mb-3">
                                   <h5 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Test Case {index + 1}</h5>
-                                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                                    test.status === 'Accepted'
+                                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${test.status === 'Accepted'
                                       ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                                       : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                                  }`}>{test.status}</span>
+                                    }`}>{test.status}</span>
                                 </div>
 
                                 <div className="space-y-2 text-sm">
@@ -1276,9 +1259,8 @@ This is called debouncing.
                                     <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Expected Output</div>
                                     <pre className="font-mono text-zinc-300 text-xs">{test.expected_output || '(empty)'}</pre>
                                   </div>
-                                  <div className={`p-3 rounded-lg border ${
-                                    test.status === 'Accepted' ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-rose-500/5 border-rose-500/20'
-                                  }`}>
+                                  <div className={`p-3 rounded-lg border ${test.status === 'Accepted' ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-rose-500/5 border-rose-500/20'
+                                    }`}>
                                     <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Your Output</div>
                                     <pre className="font-mono text-zinc-300 text-xs">{test.stdout || '(empty)'}</pre>
                                   </div>
@@ -1354,7 +1336,7 @@ This is called debouncing.
                         <h4 className="font-black text-xl text-rose-400 mb-1">
                           ❌ {submitResult.status === 'wrong' ? 'Wrong Answer' :
                             submitResult.status === 'error' ? 'Runtime Error' :
-                            submitResult.errorMessage || submitResult.error || 'Submission Failed'}
+                              submitResult.errorMessage || submitResult.error || 'Submission Failed'}
                         </h4>
                         <p className="text-zinc-500 text-sm mb-4">Test Cases Passed: <span className="text-white font-bold">{submitResult.testCasesPassed || submitResult.passedTestCases || 0}/{submitResult.testCasesTotal || submitResult.totalTestCases || 0}</span></p>
                         {submitResult.details && (

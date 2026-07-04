@@ -65,23 +65,26 @@ function ProblemsPage() {
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState({ difficulty: "all", tag: "all", status: "all" });
 
+  const fetchProblems = async () => {
+    try {
+      const response = await axiosClient.get("/problem/getAllProblems");
+      setProblems(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      console.error(error);
+      setProblems([]);
+    }
+  };
+
+  const fetchSolvedProblems = async () => {
+    try {
+      const { data } = await axiosClient.get("/problem/problemSolvedByUser");
+      setSolvedProblems(data?.solvedProblems || []);
+    } catch (error) {
+      console.error("Error fetching solved problems:", error);
+    }
+  };
+
   useEffect(() => {
-    const fetchProblems = async () => {
-      try {
-        const { data } = await axiosClient.get("/problem/getAllProblems");
-        setProblems(data);
-      } catch (error) {
-        console.error("Error fetching problems:", error);
-      }
-    };
-    const fetchSolvedProblems = async () => {
-      try {
-        const { data } = await axiosClient.get("/problem/problemSolvedByUser");
-        setSolvedProblems(data?.solvedProblems);
-      } catch (error) {
-        console.error("Error fetching solved problems:", error);
-      }
-    };
     fetchProblems();
     if (user) fetchSolvedProblems();
   }, [user]);
