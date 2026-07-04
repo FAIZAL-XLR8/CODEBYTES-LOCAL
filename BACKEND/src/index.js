@@ -43,7 +43,7 @@ app.use(
 
 app.use(express.json());
 app.use(cookieParser());
-app.use(apiLimiter);
+
 
 // Logging middleware
 app.use((req, res, next) => {
@@ -53,7 +53,7 @@ app.use((req, res, next) => {
 
 // ================= API ROUTES =================
 
-app.use("/submission", submitRoute);
+app.use("/submission", apiLimiter, submitRoute);
 app.use("/user", authRoute);
 app.use("/problem", problemRoute);
 app.use("/ai", aiRouter);

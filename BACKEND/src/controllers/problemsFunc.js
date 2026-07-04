@@ -176,13 +176,19 @@ const getProblemById = async (req, res) => {
   }
 };
 const getAllProblems = async (req, res) => {
-  const allProblems = await problemCollection
-    .find()
-    .select("title tags _id difficulty");
-  if (allProblems.length === 0) {
-    return res.send("Empty no Problem");
+  try {
+    const allProblems = await problemCollection
+      .find()
+      .select("title tags _id difficulty");
+
+    console.log("Problems found:", allProblems.length);
+    console.log(allProblems);
+
+    return res.status(200).json(allProblems);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json(err.message);
   }
-  res.status(200).send(allProblems);
 };
  const solvedProblemsbyUsers = async (req, res) => {
     try {
