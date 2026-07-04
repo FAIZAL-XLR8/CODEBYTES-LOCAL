@@ -21,7 +21,7 @@ problemRoute.delete("/delete/:id", adminKAMiddlware, deleteProblem);
 problemRoute.put("/update/:id", adminKAMiddlware, updateProblem);
 //User ka kaam
 problemRoute.get("/problemById/:id", userAuthMiddleware, getProblemById);
-problemRoute.get("/getAllProblems", userAuthMiddleware, getAllProblems);
+problemRoute.get("/getAllProblems", getAllProblems);
  problemRoute.get("/problemSolvedByUser", userAuthMiddleware, solvedProblemsbyUsers);
  problemRoute.get("/submissionsProblem/:pid", userAuthMiddleware,submissionsProblemLimiter ,submissionsProblem);
 
