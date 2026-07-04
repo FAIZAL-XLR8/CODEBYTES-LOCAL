@@ -72,8 +72,15 @@ console.log(
 
 app.use(express.static(frontendPath));
 
-// IMPORTANT: This must be LAST (Express 5)
-app.use((req, res) => {
+app.use((req, res, next) => {
+  if (req.path.startsWith("/problem") ||
+      req.path.startsWith("/user") ||
+      req.path.startsWith("/submission") ||
+      req.path.startsWith("/ai") ||
+      req.path.startsWith("/video") ||
+      req.path.startsWith("/discussion")) {
+    return res.status(404).json({ error: "API route not found" });
+  }
   res.sendFile(path.join(frontendPath, "index.html"));
 });
 
