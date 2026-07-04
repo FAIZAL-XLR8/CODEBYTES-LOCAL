@@ -20,6 +20,7 @@ const videoRouter = require("./Routes/videoCreator");
 const discussionRoute = require("./Routes/discussion");
 
 const app = express();
+app.set("trust proxy", 1);
 
 const allowedOrigins = [
   "http://localhost:5173",
