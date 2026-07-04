@@ -978,9 +978,10 @@ This is called debouncing.
                                 <span
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    if (statsTooltipUserId === comment.userId) {
+                                    if (statsTooltipUserId === comment._id) {
                                       setStatsTooltipUserId(null);
                                     } else {
+                                      setStatsTooltipUserId(comment._id);
                                       handleFetchUserStats(comment.userId);
                                     }
                                   }}
@@ -989,7 +990,7 @@ This is called debouncing.
                                   {comment.userName}
                                 </span>
 
-                                {statsTooltipUserId === comment.userId && (
+                                {statsTooltipUserId === comment._id && (
                                   <div
                                     onClick={(e) => e.stopPropagation()}
                                     className="absolute left-0 bottom-full mb-3.5 z-[100] w-64 p-4 rounded-xl bg-zinc-900 border border-zinc-800 shadow-2xl text-left animate-fade-in"
