@@ -301,11 +301,7 @@ function ProblemsPage() {
             {filteredProblems?.length === 0 && (
               <div className="flex items-center justify-center py-16">
                 <div className="flex flex-col items-center gap-2">
-                  <img
-                    src="/empty-state.png"
-                    alt="Ready to level up?"
-                    className="w-48 h-48 object-contain"
-                  />
+
                   <button
                     onClick={() => { setFilters({ difficulty: "all", tag: "all", status: "all" }); setSearch(""); }}
                     className="text-xs text-emerald-400 hover:text-emerald-300 hover:underline transition-colors"
