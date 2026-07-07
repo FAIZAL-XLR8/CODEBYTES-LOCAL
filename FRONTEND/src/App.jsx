@@ -11,6 +11,8 @@ import AdminPanel from "../PAGES/adminPanel.jsx";
 import ProfilePage from "../PAGES/ProfilePage.jsx";
 import { Toaster } from "react-hot-toast";
 
+import StudyAssistant from "../PAGES/StudyAssistant.jsx";
+
  export const App = () => {
   // code of is Authenticated
   const {isAuthenticated, loading, user } = useSelector((globalState) => globalState?.auth);
@@ -60,7 +62,7 @@ return  <div className="min-h-screen flex items-center justify-center">
     user?.role === "admin" ? <AdminPanel /> : <Navigate to="/" />
   }
 />
-
+        <Route path="/study-assistant" element={isAuthenticated ? <StudyAssistant /> : <Navigate to="/login" />}></Route>
         <Route path="/problem/:problemId" element= {<ProblemPage></ProblemPage>}></Route>
       </Routes>
     

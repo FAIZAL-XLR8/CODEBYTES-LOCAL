@@ -7,8 +7,9 @@ import { logoutUser } from "../src/authSlice";
 import toast from "react-hot-toast";
 import {
   ShieldAlert, LogOut, SlidersHorizontal, CheckCircle2,
-  Circle, ChevronRight, Search, BarChart2, Zap, Trophy,
+  Circle, ChevronRight, Search, BarChart2, Zap, Trophy, BookOpen
 } from "lucide-react";
+
 
 /* ── Difficulty badge ── */
 const DiffBadge = ({ level }) => {
@@ -136,6 +137,13 @@ function ProblemsPage() {
                 className="text-sm font-semibold text-zinc-300 hover:text-emerald-400 bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/50 hover:border-emerald-500/30 px-4 py-2 rounded-lg transition-all"
               >
                 {user.userName || user.firstName}
+              </NavLink>
+              <NavLink
+                to="/study-assistant"
+                className="text-sm font-semibold text-zinc-300 hover:text-emerald-400 bg-zinc-800/60 hover:bg-zinc-800 border border-zinc-700/50 hover:border-emerald-500/30 px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition-all"
+              >
+                <BookOpen size={14} className="text-emerald-400" />
+                Study Assistant
               </NavLink>
               {user?.role === "admin" && (
                 <button

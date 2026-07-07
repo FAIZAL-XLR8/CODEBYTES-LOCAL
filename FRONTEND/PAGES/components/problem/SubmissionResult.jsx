@@ -8,7 +8,7 @@ const SubmissionResult = ({ submitResult }) => {
         <div>
           {submitResult.accepted === true || submitResult.status === 'accepted' ? (
             <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-6">
-              <h4 className="font-black text-2xl text-emerald-400 mb-1">✅ Accepted</h4>
+              <h4 className="font-black text-2xl text-emerald-400 mb-1">Accepted</h4>
               <p className="text-zinc-500 text-sm mb-4">Your solution passed all test cases.</p>
               <div className="grid grid-cols-3 gap-3">
                 <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 text-center">
@@ -17,11 +17,11 @@ const SubmissionResult = ({ submitResult }) => {
                 </div>
                 <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 text-center">
                   <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Runtime</p>
-                  <p className="text-lg font-black text-white">{submitResult.runtime}s</p>
+                  <p className="text-lg font-black text-white">{submitResult.runtime ? parseFloat(submitResult.runtime).toFixed(4) : 'N/A'}s</p>
                 </div>
                 <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 text-center">
                   <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Memory</p>
-                  <p className="text-lg font-black text-white">{submitResult.memory}KB</p>
+                  <p className="text-lg font-black text-white">{submitResult.memory ? parseFloat(submitResult.memory).toFixed(4) : 'N/A'}KB</p>
                 </div>
               </div>
             </div>

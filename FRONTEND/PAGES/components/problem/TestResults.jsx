@@ -17,7 +17,7 @@ const TestResults = ({ runResult, problem }) => {
             <>
               {runResult.every(test => test.status === 'Accepted') ? (
                 <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 mb-4">
-                  <h4 className="font-bold text-emerald-400 flex items-center gap-2">✅ All Test Cases Passed</h4>
+                  <h4 className="font-bold text-emerald-400 flex items-center gap-2">All Test Cases Passed</h4>
                   <p className="text-sm text-zinc-400 mt-1">{runResult.length} / {runResult.length} passed</p>
                 </div>
               ) : (
@@ -83,8 +83,8 @@ const TestResults = ({ runResult, problem }) => {
                           </div>
                         )}
                         <div className="flex gap-4 text-xs text-zinc-600">
-                          {test.time && <span>⏱ {test.time}s</span>}
-                          {test.memory && <span>💾 {test.memory}KB</span>}
+                          {test.time && <span>⏱ {parseFloat(test.time).toFixed(4)}s</span>}
+                          {test.memory && <span>💾 {parseFloat(test.memory).toFixed(4)}KB</span>}
                         </div>
                       </div>
                     </div>

@@ -58,6 +58,8 @@ function ProfilePage() {
   const [profileData, setProfileData] = useState(null);
   const [problems, setProblems] = useState([]);
   const [solvedProblems, setSolvedProblems] = useState([]);
+  const [heatmapData, setHeatmapData] = useState({});
+  const [activeHoverDay, setActiveHoverDay] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -70,6 +72,10 @@ function ProfilePage() {
         setProblems(problemsRes.data);
         const solvedRes = await axiosClient.get("/problem/problemSolvedByUser");
         setSolvedProblems(solvedRes.data.solvedProblems || []);
+        
+        // Fetch activity heatmap data
+        const heatmapRes = await axiosClient.get("/user/activity-heatmap");
+        setHeatmapData(heatmapRes.data || {});
       } catch (error) {
         console.error("Error loading profile details:", error);
         toast.error("Failed to load profile details");
@@ -257,6 +263,193 @@ function ProfilePage() {
                 </div>
                 <AnimatedBar value={overallPct} color="bg-gradient-to-r from-emerald-600 to-emerald-400" delay={0.4} />
               </div>
+            </motion.div>
+
+            {/* ── 365 DAYS ACTIVITY HEATMAP ── */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.18 }}
+              className="bg-zinc-900/70 border border-zinc-800/60 rounded-2xl p-6 shadow-2xl relative overflow-hidden"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wider text-zinc-500 mb-1">Activity Heatmap</p>
+                  <h3 className="text-lg font-bold text-white">365 Days Contributions</h3>
+                </div>
+                <div className="flex items-center gap-1.5 text-xs text-zinc-500">
+                  <span>Less</span>
+                  <div className="w-2.5 h-2.5 rounded-sm bg-zinc-800/40 border border-zinc-700/30"></div>
+                  <div className="w-2.5 h-2.5 rounded-sm bg-emerald-950 border border-emerald-900/35"></div>
+                  <div className="w-2.5 h-2.5 rounded-sm bg-emerald-800/60 border border-emerald-700/50"></div>
+                  <div className="w-2.5 h-2.5 rounded-sm bg-emerald-600/80 border border-emerald-500/50"></div>
+                  <div className="w-2.5 h-2.5 rounded-sm bg-emerald-400"></div>
+                  <span>More</span>
+                </div>
+              </div>
+
+              {/* Generate Grid Calendar */}
+              {(() => {
+                const days = [];
+                const today = new Date();
+                
+                // Go back 364 days to get total 365 days
+                const startDate = new Date(today);
+                startDate.setDate(startDate.getDate() - 364);
+
+                // Align grid to start on nearest Sunday
+                const startDayOffset = startDate.getDay();
+                const adjustedStartDate = new Date(startDate);
+                adjustedStartDate.setDate(adjustedStartDate.getDate() - startDayOffset);
+
+                const totalGridDays = 365 + startDayOffset;
+                const tempDate = new Date(adjustedStartDate);
+
+                for (let i = 0; i < totalGridDays; i++) {
+                  const dateStr = tempDate.toISOString().split('T')[0];
+                  const dayData = heatmapData[dateStr] || { solved: [], attempts: { wrong: 0, error: 0, timeLimit: 0 }, languages: [] };
+                  
+                  days.push({
+                    date: new Date(tempDate),
+                    dateStr,
+                    data: dayData
+                  });
+                  tempDate.setDate(tempDate.getDate() + 1);
+                }
+
+                // Chunk days into weeks (columns of 7 rows)
+                const weeks = [];
+                for (let i = 0; i < days.length; i += 7) {
+                  weeks.push(days.slice(i, i + 7));
+                }
+
+                const getIntensityClass = (solvedCount) => {
+                  if (solvedCount === 0) return 'bg-zinc-800/40 border border-zinc-700/10 hover:border-zinc-500/30';
+                  if (solvedCount === 1) return 'bg-emerald-950 border border-emerald-900/40 hover:bg-emerald-900';
+                  if (solvedCount === 2) return 'bg-emerald-800/70 border border-emerald-700/40 hover:bg-emerald-700';
+                  return 'bg-emerald-400 border border-emerald-300 hover:bg-emerald-300 text-zinc-950';
+                };
+
+                const formatDateText = (dateObj) => {
+                  return dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+                };
+
+                return (
+                  <div className="flex flex-col gap-6">
+                    {/* Calendar grid container */}
+                    <div className="overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+                      <div className="flex gap-1 min-w-[700px] select-none">
+                        {/* Month labels column helper */}
+                        <div className="flex flex-col text-[10px] text-zinc-650 pr-2 font-bold font-mono" style={{ gap: '4px' }}>
+                          <span className="h-3.5 flex items-center leading-none">Sun</span>
+                          <span className="h-3.5"></span>
+                          <span className="h-3.5"></span>
+                          <span className="h-3.5 flex items-center leading-none">Wed</span>
+                          <span className="h-3.5"></span>
+                          <span className="h-3.5"></span>
+                          <span className="h-3.5 flex items-center leading-none">Sat</span>
+                        </div>
+
+                        {weeks.map((week, wIdx) => (
+                          <div key={wIdx} className="flex flex-col gap-1">
+                            {week.map((day, dIdx) => {
+                              const solvedCount = day.data.solved.length;
+                              const isToday = day.dateStr === today.toISOString().split('T')[0];
+                              
+                              return (
+                                <div
+                                  key={dIdx}
+                                  className={`w-3.5 h-3.5 rounded-sm transition-all duration-100 cursor-pointer ${getIntensityClass(solvedCount)} ${
+                                    isToday ? 'ring-1 ring-offset-1 ring-emerald-500 ring-offset-zinc-900' : ''
+                                  }`}
+                                  onMouseEnter={() => setActiveHoverDay(day)}
+                                  onClick={() => setActiveHoverDay(day)}
+                                  title={`${formatDateText(day.date)}: ${solvedCount} solved`}
+                                />
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Interactive hover details card */}
+                    <div className="border-t border-zinc-800/50 pt-5 mt-2">
+                      {activeHoverDay ? (
+                        <div className="animate-fade-in flex flex-col md:flex-row md:items-start justify-between gap-6 bg-zinc-950/40 border border-zinc-850 rounded-xl p-4 shadow-inner">
+                          {/* Left: Date + Solved details */}
+                          <div className="space-y-3">
+                            <div>
+                              <h4 className="text-sm font-bold text-white">{formatDateText(activeHoverDay.date)}</h4>
+                              <p className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider mt-0.5">Daily Contribution Activity</p>
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <span className="text-xs font-semibold text-zinc-400 block">Solved:</span>
+                              {activeHoverDay.data.solved.length > 0 ? (
+                                <div className="flex flex-col gap-1 pl-1">
+                                  {activeHoverDay.data.solved.map((title, idx) => (
+                                    <span key={idx} className="text-xs font-medium text-zinc-200 flex items-center gap-1.5">
+                                      <span className="text-emerald-500 font-bold">✓</span> {title}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <span className="text-xs text-zinc-650 italic block pl-1">No problems solved on this day.</span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Middle: Attempts */}
+                          <div className="space-y-2">
+                            <span className="text-xs font-semibold text-zinc-400 block">Attempts:</span>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 pl-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-zinc-350">Wrong Answer:</span>
+                                <span className={`text-xs font-bold ${activeHoverDay.data.attempts.wrong > 0 ? 'text-rose-400' : 'text-zinc-500'}`}>
+                                  {activeHoverDay.data.attempts.wrong > 0 ? `×${activeHoverDay.data.attempts.wrong}` : '0'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-zinc-355">Runtime Error:</span>
+                                <span className={`text-xs font-bold ${activeHoverDay.data.attempts.error > 0 ? 'text-amber-400' : 'text-zinc-500'}`}>
+                                  {activeHoverDay.data.attempts.error > 0 ? `×${activeHoverDay.data.attempts.error}` : '0'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 col-span-2">
+                                <span className="text-xs font-bold text-zinc-350">Time Limit Exceeded:</span>
+                                <span className={`text-xs font-bold ${activeHoverDay.data.attempts.timeLimit > 0 ? 'text-amber-400' : 'text-zinc-500'}`}>
+                                  {activeHoverDay.data.attempts.timeLimit > 0 ? `×${activeHoverDay.data.attempts.timeLimit}` : '0'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Right: Languages */}
+                          <div className="space-y-1.5 min-w-[120px]">
+                            <span className="text-xs font-semibold text-zinc-400 block">Languages:</span>
+                            {activeHoverDay.data.languages.length > 0 ? (
+                              <div className="flex flex-wrap gap-1.5 pl-1">
+                                {activeHoverDay.data.languages.map((lang, idx) => (
+                                  <span key={idx} className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-zinc-800 border border-zinc-700/60 rounded-md text-zinc-300">
+                                    {lang}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-zinc-650 italic block pl-1">None</span>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-6 border border-dashed border-zinc-800 rounded-xl bg-zinc-950/20">
+                          <p className="text-xs text-zinc-500">Hover or click any calendar square to view activity details</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             </motion.div>
 
             {/* Difficulty breakdown */}
