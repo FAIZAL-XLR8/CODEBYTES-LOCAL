@@ -11,12 +11,14 @@ const {
   getProfile,
   adminRegister,
   deleteProfile,
+  getActivityHeatmap,
 } = require("../controllers/userAuthenticate");
 authRoute.post("/register", register);
 authRoute.post("/login", login);
 authRoute.get("/logout", tokenVerify, logout);
 authRoute.delete("/profile", userAuthMiddleware, deleteProfile);
 authRoute.get("/getProfile", tokenVerify, getProfile);
+authRoute.get("/activity-heatmap", userAuthMiddleware, getActivityHeatmap);
 authRoute.post("/admin/register", adminMiddleware, adminRegister);
 // user gets verified if it exists or not then if it does we send the reponse user is already present 
 authRoute.get('/check', userAuthMiddleware, (req, res) => {

@@ -3,6 +3,7 @@
   const jwt = require("jsonwebtoken");
   const userCollection = require("../Schemas/userSchema");
   const redisClient = require("../config/redis");
+  const submissonCollection = require("../Schemas/submissionSchema");
 const register = async (req, res) => {
   try {
    
@@ -154,5 +155,75 @@ const register = async (req, res) => {
       res.status(200).send(err.message);
     }
   }
-  module.exports = { register, login, logout, getProfile, adminRegister , deleteProfile};
+
+  const getActivityHeatmap = async (req, res) => {
+    try {
+      const userId = req.user._id;
+
+      // Find all submissions in the last year
+      const oneYearAgo = new Date();
+      oneYearAgo.setDate(oneYearAgo.getDate() - 365);
+
+      const submissions = await submissonCollection.find({
+        userId,
+        createdAt: { $gte: oneYearAgo }
+      })
+      .populate("problemId", "title")
+      .sort({ createdAt: 1 });
+
+      // Group submissions by local date (YYYY-MM-DD)
+      const heatmap = {};
+
+      submissions.forEach(sub => {
+        if (!sub.createdAt) return;
+        
+        // Format to YYYY-MM-DD
+        const dateStr = sub.createdAt.toISOString().split('T')[0];
+
+        if (!heatmap[dateStr]) {
+          heatmap[dateStr] = {
+            solved: [],
+            attempts: {
+              wrong: 0,
+              error: 0,
+              timeLimit: 0
+            },
+            languages: []
+          };
+        }
+
+        // Handle solved / accepted problems
+        if (sub.status === 'accepted') {
+          const problemTitle = sub.problemId?.title || "Unknown Problem";
+          if (!heatmap[dateStr].solved.includes(problemTitle)) {
+            heatmap[dateStr].solved.push(problemTitle);
+          }
+        } else {
+          // Handle failed attempts
+          if (sub.status === 'wrong') {
+            heatmap[dateStr].attempts.wrong++;
+          } else if (sub.status === 'error') {
+            // Check if it's a TLE error or standard compile/runtime error
+            if (sub.errorMessage && sub.errorMessage.toLowerCase().includes('time limit')) {
+              heatmap[dateStr].attempts.timeLimit++;
+            } else {
+              heatmap[dateStr].attempts.error++;
+            }
+          }
+        }
+
+        // Collect unique languages
+        if (sub.language && !heatmap[dateStr].languages.includes(sub.language)) {
+          heatmap[dateStr].languages.push(sub.language);
+        }
+      });
+
+      res.status(200).json(heatmap);
+    } catch (err) {
+      console.error("Heatmap fetch error:", err);
+      res.status(500).json({ error: "Failed to generate activity heatmap" });
+    }
+  };
+
+  module.exports = { register, login, logout, getProfile, adminRegister, deleteProfile, getActivityHeatmap };
  

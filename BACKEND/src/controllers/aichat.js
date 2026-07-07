@@ -1,10 +1,10 @@
-const {GoogleGenAI} = require ("@google/genai")
+const { GoogleGenAI } = require("@google/genai")
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GEMINI_API_KEY,
 });
 
- const chatWithAI = async (req, res) => {
+const chatWithAI = async (req, res) => {
   try {
     const { message, systemPrompt } = req.body;
 
@@ -14,9 +14,9 @@ const ai = new GoogleGenAI({
         { role: "user", parts: [{ text: systemPrompt + "\n\nUser: " + message }] }
       ],
       config: {
-      systemInstruction: "You are a coding Assistant AI who helps with DSA problems, Focus on intuition, control flow, and complexity, if user asks anything beside DSA problem , do not answer them just say I can help only with DSA."
+        systemInstruction: "You are a coding Assistant AI who helps with DSA problems, Focus on intuition, control flow, and complexity, if user asks anything beside DSA problem , do not answer them just say I can help only with DSA."
 
-    },
+      },
     });
 
     res.json({
@@ -117,8 +117,37 @@ const getNextLinesSuggestion = async (req, res) => {
   }
 };
 
+const studyAssistantChat = async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message) {
+      return res.status(400).json({ error: "Message content is required" });
+    }
+
+    // Default assistant system instructions
+    const systemInstruction = "You are a helpful DSA coding assistant. Focus on intuition, algorithm design, control flow, and computational complexity.";
+
+    // Generate response using gemini-3.1-flash-lite
+    const response = await ai.models.generateContent({
+      model: "gemini-3.1-flash-lite",
+      contents: [{ role: "user", parts: [{ text: message }] }],
+      config: {
+        systemInstruction: systemInstruction
+      }
+    });
+
+    res.json({
+      reply: response.text
+    });
+  } catch (err) {
+    console.error("Study assistant controller error:", err);
+    res.status(500).json({ error: "Failed to fetch response from study assistant" });
+  }
+};
+
 module.exports = {
   chatWithAI,
   analyzeCodeWithAI,
-  getNextLinesSuggestion
+  getNextLinesSuggestion,
+  studyAssistantChat
 };
