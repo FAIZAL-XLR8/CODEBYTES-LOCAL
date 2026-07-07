@@ -1,15 +1,31 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
-import Editor, { DiffEditor } from '@monaco-editor/react';
 import { Link } from 'react-router';
 import { useParams } from 'react-router';
 import axiosClient from '../src/utils/axiosClient';
-import AIChatAssistant, { renderMessageContent } from "./chatAi"
+import AIChatAssistant from "./chatAi"
 import { useDispatch, useSelector } from 'react-redux';
 import { saveCode, selectCode, clearLanguageCode, clearProblemCode, markProblemInitialized, selectIsInitialized } from '../src/utils/codeSlice';
 import Editorial from "./Editorial"
 import toast from 'react-hot-toast';
 import { ChevronLeft } from 'lucide-react';
+
+// ── Segregated tab/panel components ──────────────────────────────────────────
+import ProblemDescription from './components/problem/ProblemDescription';
+import Solutions from './components/problem/Solutions';
+import SubmissionsTab from './components/problem/SubmissionsTab';
+import AIAnalyser from './components/problem/AIAnalyser';
+import Discussion from './components/problem/Discussion';
+import CodeEditor from './components/problem/CodeEditor';
+import TestResults from './components/problem/TestResults';
+import SubmissionResult from './components/problem/SubmissionResult';
+import DiffModal from './components/problem/DiffModal';
+
+// Raw TypeScript declaration imports for Node (Point 3 - Option 2)
+import globalsDts from '../node_modules/@types/node/globals.d.ts?raw';
+import processDts from '../node_modules/@types/node/process.d.ts?raw';
+import readlineDts from '../node_modules/@types/node/readline.d.ts?raw';
+
 const ProblemPage = () => {
   const [problem, setProblem] = useState(null);
   const [selectedLanguage, setSelectedLanguage] = useState('javascript');
@@ -237,8 +253,8 @@ const ProblemPage = () => {
     if (!code || !isInitialized) {
       return;
       //above says
-      // “Don’t save if code is empty”
-      // “Don’t save if this problem+language isn’t fully initialized yet”
+      // "Don't save if code is empty"
+      // "Don't save if this problem+language isn't fully initialized yet"
     }
 
     const timeoutId = setTimeout(() => {
@@ -321,6 +337,39 @@ This is called debouncing.
   /* HANDLE EDITOR MOUNT */
   const handleEditorDidMount = (editor, monaco) => {
     editorRef.current = editor;
+
+    // 1. Add Node.js type definitions to Monaco (Point 3 - Option 2)
+    monaco.languages.typescript.javascriptDefaults.addExtraLib(
+      globalsDts,
+      'ts:node/globals.d.ts'
+    );
+    monaco.languages.typescript.javascriptDefaults.addExtraLib(
+      processDts,
+      'ts:node/process.d.ts'
+    );
+    monaco.languages.typescript.javascriptDefaults.addExtraLib(
+      readlineDts,
+      'ts:node/readline.d.ts'
+    );
+
+    // Provide a signature helper for require module resolving
+    monaco.languages.typescript.javascriptDefaults.addExtraLib(`
+      declare function require(moduleName: 'readline'): typeof import('readline');
+      declare function require(moduleName: string): any;
+    `, 'ts:node/require.d.ts');
+
+    // 2. Configure JavaScript Language Defaults & Compiler Options (Point 2)
+    monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: false, // Turn ON semantic validation (red squiggles on type errors)
+      noSyntaxValidation: false,   // Enable syntax validation
+    });
+
+    monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+      target: monaco.languages.typescript.ScriptTarget.ES2020,
+      allowNonTsExtensions: true,
+      checkJs: true,                // Enable full type checker for vanilla JS files
+      noImplicitAny: true,          // Flag implicit 'any' (e.g. unknown variables like kak) as errors
+    });
   };
   const getCurrentCode = () => {
     return editorRef.current?.getValue();
@@ -433,8 +482,8 @@ This is called debouncing.
           </h2>
           {problem?.difficulty && (
             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${problem.difficulty === 'easy' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                problem.difficulty === 'medium' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                  'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+              problem.difficulty === 'medium' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                'bg-rose-500/10 text-rose-400 border border-rose-500/20'
               }`}>{problem.difficulty}</span>
           )}
         </div>
@@ -462,8 +511,8 @@ This is called debouncing.
                 key={tab}
                 onClick={() => setActiveLeftTab(tab)}
                 className={`px-5 py-3.5 text-xs font-semibold tracking-wide transition-all whitespace-nowrap ${activeLeftTab === tab
-                    ? 'text-emerald-400 border-b-2 border-emerald-500 bg-[#0d1117]'
-                    : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/30'
+                  ? 'text-emerald-400 border-b-2 border-emerald-500 bg-[#0d1117]'
+                  : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/30'
                   }`}
               >
                 {tab === 'ai-analyser' ? 'AI Analyser' : tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -474,127 +523,9 @@ This is called debouncing.
           {/* Left Content */}
           <div className="flex-1 overflow-y-auto p-7">
             {activeLeftTab === 'description' && (
-              <div className="space-y-6">
-                {problem ? (
-                  <>
-                    {/* Problem Title */}
-                    <div>
-                      <h1 className="text-xl font-bold text-white mb-3">{problem.title}</h1>
-                      <div className="flex items-center gap-2">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide ${problem.difficulty === 'easy' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                            problem.difficulty === 'medium' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
-                              'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                          }`}>{problem.difficulty}</span>
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md bg-zinc-800 text-zinc-400 text-xs font-semibold uppercase border border-zinc-700">{problem.tags}</span>
-                      </div>
-                    </div>
-
-                    {/* Problem Description */}
-                    <div className="prose prose-invert max-w-none">
-                      <div
-                        className="text-zinc-300 leading-relaxed text-sm"
-                        dangerouslySetInnerHTML={{ __html: problem.description || problem.problemStatement }}
-                      />
-                    </div>
-
-                    {/* Examples - using visibleTestCases */}
-                    {problem.visibleTestCases && problem.visibleTestCases.length > 0 && (
-                      <div className="space-y-4">
-                        <h3 className="text-base font-bold text-zinc-200 flex items-center gap-2"><span className="w-1 h-4 bg-emerald-500 rounded-full inline-block"></span>Examples:</h3>
-                        {problem.visibleTestCases.map((example, index) => (
-                          <div key={index} className="bg-zinc-900/60 rounded-xl p-4 border border-zinc-800">
-                            <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Example {index + 1}</p>
-                            <div className="space-y-2 text-sm">
-                              <div className="bg-zinc-950/60 rounded-lg p-2.5 border border-zinc-800/60">
-                                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Input</span>
-                                <pre className="text-zinc-300 font-mono mt-1 text-xs whitespace-pre-wrap">{example.input}</pre>
-                              </div>
-                              <div className="bg-zinc-950/60 rounded-lg p-2.5 border border-zinc-800/60">
-                                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Output</span>
-                                <pre className="text-zinc-300 font-mono mt-1 text-xs whitespace-pre-wrap">{example.output}</pre>
-                              </div>
-                              {example.explanation && (
-                                <div className="bg-emerald-500/5 rounded-lg p-2.5 border border-emerald-500/20">
-                                  <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">Explanation</span>
-                                  <p className="text-zinc-300 mt-1 text-xs">{example.explanation}</p>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {!problem.visibleTestCases && problem.visibleTestCase && problem.visibleTestCase.length > 0 && (
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-white">Test Cases:</h3>
-                        {problem.visibleTestCase.map((testCase, index) => (
-                          <div key={index} className="bg-[#282828] rounded-lg p-4 border border-[#3d3d3d]">
-                            <p className="font-semibold text-white mb-3">Test Case {index + 1}:</p>
-                            <div className="space-y-3">
-                              <div className="bg-[#1e1e1e] p-3 rounded">
-                                <div className="text-xs font-semibold text-gray-400 mb-1">INPUT</div>
-                                <pre className="text-sm text-gray-300 font-mono whitespace-pre-wrap">{testCase.input}</pre>
-                              </div>
-                              <div className="bg-[#1e1e1e] p-3 rounded">
-                                <div className="text-xs font-semibold text-gray-400 mb-1">EXPECTED OUTPUT</div>
-                                <pre className="text-sm text-gray-300 font-mono whitespace-pre-wrap">{testCase.output}</pre>
-                              </div>
-                              {testCase.explanation && (
-                                <div className="bg-blue-900/20 p-3 rounded border border-blue-500/30">
-                                  <div className="text-xs font-semibold text-blue-400 mb-1">EXPLANATION</div>
-                                  <p className="text-sm text-gray-300">{testCase.explanation}</p>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {!problem.visibleTestCases && !problem.visibleTestCase && problem.examples && problem.examples.length > 0 && (
-                      <div className="space-y-4">
-                        <h3 className="text-lg font-semibold text-white">Examples:</h3>
-                        {problem.examples.map((example, index) => (
-                          <div key={index} className="bg-[#282828] rounded-lg p-4 border border-[#3d3d3d]">
-                            <p className="font-semibold text-white mb-2">Example {index + 1}:</p>
-                            <div className="space-y-2 text-sm">
-                              <p className="text-gray-300">
-                                <span className="font-semibold text-white">Input:</span> {example.input}
-                              </p>
-                              <p className="text-gray-300">
-                                <span className="font-semibold text-white">Output:</span> {example.output}
-                              </p>
-                              {example.explanation && (
-                                <p className="text-gray-300">
-                                  <span className="font-semibold text-white">Explanation:</span> {example.explanation}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-
-                    {problem.constraints && problem.constraints.length > 0 && (
-                      <div className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4">
-                        <h3 className="text-sm font-bold text-zinc-300 mb-3 flex items-center gap-2"><span className="w-1 h-4 bg-zinc-500 rounded-full inline-block"></span>Constraints:</h3>
-                        <ul className="space-y-1.5 text-zinc-400">
-                          {problem.constraints.map((constraint, index) => (
-                            <li key={index} className="flex items-start gap-2 text-sm"><span className="text-emerald-500 mt-0.5">•</span>{constraint}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <span className="loading loading-spinner loading-lg text-primary"></span>
-                  </div>
-                )}
-              </div>
+              <ProblemDescription problem={problem} />
             )}
+
             {activeLeftTab === 'editorial' && (
               <div className="prose max-w-none">
                 <h2 className="text-xl font-bold mb-4">Editorial</h2>
@@ -605,482 +536,50 @@ This is called debouncing.
             )}
 
             {activeLeftTab === 'solutions' && (
-              <div className="py-6">
-                {problem && problem.referenceSolution && problem.referenceSolution.length > 0 ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 mb-4">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <h3 className="text-xl font-semibold text-white">Reference Solutions</h3>
-                    </div>
-
-                    {problem.referenceSolution.map((solution, index) => (
-                      <div key={index} className="bg-[#282828] rounded-lg border border-[#3d3d3d] overflow-hidden">
-                        <div className="px-4 py-3 bg-[#1e1e1e] border-b border-[#3d3d3d] flex items-center justify-between">
-                          <span className="font-semibold text-white">{solution.language}</span>
-                          <button
-                            onClick={async () => {
-                              const textToCopy = solution.solutionCode;
-
-                              try {
-                                if (navigator.clipboard && window.isSecureContext) {
-                                  await navigator.clipboard.writeText(textToCopy);
-                                } else {
-                                  const textArea = document.createElement("textarea");
-                                  textArea.value = textToCopy;
-                                  textArea.style.position = "absolute";
-                                  textArea.style.left = "-999999px";
-                                  document.body.prepend(textArea);
-                                  textArea.select();
-                                  document.execCommand('copy');
-                                  textArea.remove();
-                                }
-
-
-                                const toast = document.createElement('div');
-                                toast.className = 'toast toast-top toast-center';
-                                toast.innerHTML = `
-        <div class="alert alert-success">
-          <span>✓ Copied to clipboard!</span>
-        </div>
-      `;
-                                document.body.appendChild(toast);
-                                setTimeout(() => toast.remove(), 2000);
-
-                              } catch (error) {
-                                console.error(error);
-
-                                // Error toast
-                                const toast = document.createElement('div');
-                                toast.className = 'toast toast-top toast-center';
-                                toast.innerHTML = `
-        <div class="alert alert-error">
-          <span>✗ Failed to copy</span>
-        </div>
-      `;
-                                document.body.appendChild(toast);
-                                setTimeout(() => toast.remove(), 2000);
-                              }
-                            }}
-                            className="btn btn-xs btn-ghost gap-1"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                            </svg>
-                            Copy
-                          </button>
-                        </div>
-                        <div className="p-4">
-                          <pre className="text-sm text-gray-300 overflow-x-auto">
-                            <code>{solution.solutionCode}</code>
-                          </pre>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <div className="max-w-md mx-auto">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                      </svg>
-                      <h3 className="text-xl font-semibold text-white mb-2">No Solutions Available</h3>
-                      <p className="text-gray-400">
-                        Solutions for this problem haven't been added yet.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <Solutions problem={problem} />
             )}
 
             {activeLeftTab === 'submissions' && (
-              <div className="py-6">
-                {loadingSubmissions ? (
-                  <div className="flex items-center justify-center py-12">
-                    <span className="loading loading-spinner loading-lg text-primary"></span>
-                  </div>
-                ) : submissions && submissions.length > 0 ? (
-                  <div className="overflow-x-auto rounded-xl border border-zinc-800 bg-zinc-900/40">
-                    <table className="table w-full border-collapse">
-                      <thead>
-                        <tr className="bg-zinc-900 border-b border-zinc-800 text-zinc-400">
-                          <th className="py-3 px-6 text-left text-xs font-semibold uppercase tracking-wider">Status</th>
-                          <th className="py-3 px-6 text-left text-xs font-semibold uppercase tracking-wider">Language</th>
-                          <th className="py-3 px-6 text-left text-xs font-semibold uppercase tracking-wider">Runtime</th>
-                          <th className="py-3 px-6 text-left text-xs font-semibold uppercase tracking-wider">Memory</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-zinc-800/50">
-                        {(Array.isArray(submissions) ? submissions : []).map((submission) => {
-                          const isAccepted = submission.status === 'accepted';
-                          const isWrong = submission.status === 'wrong';
-                          const isError = submission.status === 'error';
-
-                          const statusText = isAccepted ? 'Accepted' :
-                            isWrong ? 'Wrong Answer' :
-                              isError ? 'Runtime Error' : 'Time Limit Exceeded';
-
-                          const statusColor = isAccepted ? 'text-emerald-400' : 'text-red-400';
-
-                          const formattedDate = new Date(submission.createdAt).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          });
-
-                          // Format runtime in milliseconds
-                          let runtimeStr = 'N/A';
-                          if (isAccepted && submission.runtime) {
-                            const rtVal = parseFloat(submission.runtime);
-                            runtimeStr = rtVal < 1
-                              ? Math.round(rtVal * 1000) + ' ms'
-                              : rtVal.toFixed(1) + ' s';
-                          }
-
-                          // Format memory in Megabytes
-                          let memoryStr = 'N/A';
-                          if (isAccepted && submission.memory) {
-                            const memVal = parseFloat(submission.memory);
-                            memoryStr = memVal > 1024
-                              ? (memVal / 1024).toFixed(1) + ' MB'
-                              : memVal.toFixed(1) + ' KB';
-                          }
-
-                          const isExpanded = expandedSubmissionId === submission._id;
-
-                          return (
-                            <React.Fragment key={submission._id}>
-                              <tr
-                                onClick={() => setExpandedSubmissionId(isExpanded ? null : submission._id)}
-                                className="group hover:bg-zinc-800/40 transition-colors duration-150 cursor-pointer"
-                              >
-                                <td className="px-6 py-4">
-                                  <div className="flex flex-col">
-                                    <span className={`text-sm font-semibold ${statusColor} group-hover:underline`}>
-                                      {statusText}
-                                    </span>
-                                    <span className="text-[11px] text-zinc-500 mt-0.5">
-                                      {formattedDate}
-                                    </span>
-                                  </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 text-xs font-semibold border border-zinc-700 uppercase">
-                                    {submission.language}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 text-sm font-medium text-zinc-300">
-                                  {isAccepted ? (
-                                    <span className="inline-flex items-center gap-1">
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                      </svg>
-                                      {runtimeStr}
-                                    </span>
-                                  ) : 'N/A'}
-                                </td>
-                                <td className="px-6 py-4 text-sm font-medium text-zinc-300">
-                                  {isAccepted ? (
-                                    <span className="inline-flex items-center gap-1">
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-                                      </svg>
-                                      {memoryStr}
-                                    </span>
-                                  ) : 'N/A'}
-                                </td>
-                              </tr>
-                              {isExpanded && (
-                                <tr className="bg-zinc-950/30">
-                                  <td colSpan="4" className="p-0 border-none">
-                                    <div className="p-5 bg-zinc-950/80 border-t border-b border-zinc-800">
-                                      <div className="flex justify-between items-center mb-3">
-                                        <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Submitted Code</span>
-                                        <div className="flex gap-2">
-                                          <button
-                                            type="button"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleAnalyzeCode(submission.code);
-                                            }}
-                                            className="btn btn-xs bg-emerald-600 hover:bg-emerald-700 border-none text-white font-medium shadow-sm transition-all"
-                                          >
-                                            Analyze with AI
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              setDiffOriginal(submission.code);
-                                              setDiffModified(getCurrentCode() || code);
-                                              setShowDiff(true);
-                                            }}
-                                            className="btn btn-xs bg-indigo-650 hover:bg-indigo-700 border-none text-white font-medium shadow-sm transition-all"
-                                          >
-                                            Compare with Current
-                                          </button>
-                                          <button
-                                            type="button"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              copyToClipboard(submission.code);
-                                              toast.success("Code copied to clipboard!");
-                                            }}
-                                            className="btn btn-xs bg-zinc-800 hover:bg-zinc-700 border-zinc-700 text-zinc-300"
-                                          >
-                                            Copy Code
-                                          </button>
-                                          {submission.errorMessage && (
-                                            <span className="text-xs text-red-400 font-medium self-center bg-red-950/30 px-2 py-0.5 rounded border border-red-500/20">
-                                              Error: {submission.errorMessage}
-                                            </span>
-                                          )}
-                                        </div>
-                                      </div>
-                                      <pre className="p-4 bg-zinc-900 border border-zinc-850 rounded-lg text-xs font-mono text-zinc-300 overflow-x-auto leading-relaxed shadow-inner">
-                                        <code>{submission.code}</code>
-                                      </pre>
-                                    </div>
-                                  </td>
-                                </tr>
-                              )}
-                            </React.Fragment>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4 text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <p className="text-zinc-500">No submissions yet. Submit your solution to see it here!</p>
-                  </div>
-                )}
-              </div>
+              <SubmissionsTab
+                submissions={submissions}
+                loadingSubmissions={loadingSubmissions}
+                expandedSubmissionId={expandedSubmissionId}
+                setExpandedSubmissionId={setExpandedSubmissionId}
+                handleAnalyzeCode={handleAnalyzeCode}
+                setDiffOriginal={setDiffOriginal}
+                setDiffModified={setDiffModified}
+                setShowDiff={setShowDiff}
+                getCurrentCode={getCurrentCode}
+                code={code}
+                copyToClipboard={copyToClipboard}
+              />
             )}
 
             {activeLeftTab === 'ai-analyser' && (
-              <div className="py-6 space-y-6">
-                <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-                  <h3 className="text-xl font-semibold text-white">AI Analysis & Feedback</h3>
-                  <button
-                    onClick={() => handleAnalyzeCode(getCurrentCode() || code)}
-                    className="btn btn-xs bg-zinc-850 hover:bg-zinc-800 border-zinc-700 text-zinc-300"
-                  >
-                    Analyze Current Code
-                  </button>
-                </div>
-
-                {analyzing ? (
-                  <div className="flex flex-col items-center justify-center py-16 gap-4">
-                    <span className="loading loading-spinner loading-lg text-emerald-500"></span>
-                    <p className="text-sm text-zinc-400 animate-pulse font-medium">AI is analyzing your code details...</p>
-                  </div>
-                ) : aiAnalysis ? (
-                  <div className="bg-[#1e1e1e] border border-zinc-800 rounded-xl p-5 shadow-inner">
-                    <div className="space-y-1">
-                      {renderMessageContent(aiAnalysis)}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-16 bg-zinc-900/20 rounded-xl border border-zinc-850 p-8">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4 text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 .364l-.707 .707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                    </svg>
-                    <h4 className="text-white font-semibold text-base mb-1">No Analysis Done Yet</h4>
-                    <p className="text-zinc-500 text-sm max-w-md mx-auto mb-4">
-                      Get instant professional feedback on your complexity, code quality, edge cases, and optimizations.
-                    </p>
-                    <button
-                      onClick={() => handleAnalyzeCode(getCurrentCode() || code)}
-                      className="btn btn-sm bg-emerald-600 hover:bg-emerald-700 border-none text-white font-medium px-4 shadow-md"
-                    >
-                      Analyze Current Workspace Code
-                    </button>
-                  </div>
-                )}
-              </div>
+              <AIAnalyser
+                aiAnalysis={aiAnalysis}
+                analyzing={analyzing}
+                handleAnalyzeCode={handleAnalyzeCode}
+                getCurrentCode={getCurrentCode}
+                code={code}
+              />
             )}
 
             {activeLeftTab === 'discussion' && (
-              <div className="py-6 space-y-6">
-                <div className="border-b border-zinc-800 pb-3 flex items-center justify-between">
-                  <h3 className="text-xl font-semibold text-white">Discussion Forum</h3>
-                  <button
-                    onClick={fetchComments}
-                    className="btn btn-xs bg-zinc-800 hover:bg-zinc-700 border-zinc-700 text-zinc-300"
-                  >
-                    Refresh Comments
-                  </button>
-                </div>
-
-                {/* Comment Box Form */}
-                <form onSubmit={handlePostComment} className="bg-zinc-900/40 border border-zinc-800 rounded-xl p-4 space-y-3">
-                  <textarea
-                    rows="3"
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    placeholder="Ask a question or share your approach..."
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-sm text-zinc-200 focus:outline-none focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/20 transition-all placeholder-zinc-600 resize-none"
-                    maxLength="500"
-                  />
-                  <div className="flex justify-between items-center text-xs text-zinc-500">
-                    <span>{newComment.length}/500</span>
-                    <button
-                      type="submit"
-                      disabled={submittingComment || !newComment.trim()}
-                      className="px-4 py-1.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg shadow-md shadow-emerald-600/20 transition-all disabled:opacity-50"
-                    >
-                      {submittingComment ? "Posting..." : "Post Comment"}
-                    </button>
-                  </div>
-                </form>
-
-                {/* Comments List */}
-                {loadingComments ? (
-                  <div className="flex justify-center py-10">
-                    <span className="loading loading-spinner loading-lg text-primary"></span>
-                  </div>
-                ) : comments && comments.length > 0 ? (
-                  <div className="space-y-4">
-                    {comments.map((comment) => (
-                      <div
-                        key={comment._id}
-                        className="bg-zinc-900/40 border border-zinc-800/80 rounded-xl p-4 hover:border-zinc-700/60 transition-colors duration-150"
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center gap-2.5">
-                            {/* Avatar Circle */}
-                            <div className="w-8 h-8 rounded-full bg-emerald-600/15 border border-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold text-xs">
-                              {comment.userName.charAt(0).toUpperCase()}
-                            </div>
-                            <div className="flex flex-col">
-                              {/* Relative Profile Solved-Stats Popup Tooltip */}
-                              <div className="relative inline-block">
-                                <span
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (statsTooltipUserId === comment._id) {
-                                      setStatsTooltipUserId(null);
-                                    } else {
-                                      setStatsTooltipUserId(comment._id);
-                                      handleFetchUserStats(comment.userId);
-                                    }
-                                  }}
-                                  className="font-semibold text-emerald-400 hover:text-emerald-300 hover:underline cursor-pointer text-sm"
-                                >
-                                  {comment.userName}
-                                </span>
-
-                                {statsTooltipUserId === comment._id && (
-                                  <div
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="absolute left-0 bottom-full mb-3.5 z-[100] w-64 p-4 rounded-xl bg-zinc-900 border border-zinc-800 shadow-2xl text-left animate-fade-in"
-                                  >
-                                    <div className="flex justify-between items-start mb-3 border-b border-zinc-850 pb-2">
-                                      <div>
-                                        <h4 className="font-bold text-white text-sm">@{hoveredUserStats?.userName || 'User'}</h4>
-                                        <p className="text-[10px] text-zinc-500 mt-0.5 font-medium tracking-wide uppercase">Stats Gauge</p>
-                                      </div>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setStatsTooltipUserId(null);
-                                        }}
-                                        className="text-zinc-500 hover:text-zinc-350 text-xs font-bold bg-zinc-850 hover:bg-zinc-800 h-5 w-5 rounded-full flex items-center justify-center transition-colors"
-                                      >
-                                        ✕
-                                      </button>
-                                    </div>
-
-                                    {loadingHoverStats ? (
-                                      <div className="flex justify-center py-4">
-                                        <span className="loading loading-spinner loading-sm text-indigo-500"></span>
-                                      </div>
-                                    ) : hoveredUserStats ? (
-                                      <div className="space-y-3">
-                                        <div className="flex items-center justify-between text-xs text-zinc-400">
-                                          <span>Total Solved:</span>
-                                          <span className="font-extrabold text-white text-sm">{hoveredUserStats.total}</span>
-                                        </div>
-
-                                        <div className="space-y-2">
-                                          <div>
-                                            <div className="flex justify-between text-[10px] mb-1 font-semibold uppercase tracking-wider">
-                                              <span className="text-emerald-400">Easy</span>
-                                              <span className="text-zinc-400">{hoveredUserStats.easy}</span>
-                                            </div>
-                                            <div className="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
-                                              <div
-                                                className="h-full bg-emerald-500"
-                                                style={{ width: `${hoveredUserStats.total > 0 ? (hoveredUserStats.easy / hoveredUserStats.total) * 100 : 0}%` }}
-                                              />
-                                            </div>
-                                          </div>
-
-                                          <div>
-                                            <div className="flex justify-between text-[10px] mb-1 font-semibold uppercase tracking-wider">
-                                              <span className="text-amber-400">Medium</span>
-                                              <span className="text-zinc-400">{hoveredUserStats.medium}</span>
-                                            </div>
-                                            <div className="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
-                                              <div
-                                                className="h-full bg-amber-500"
-                                                style={{ width: `${hoveredUserStats.total > 0 ? (hoveredUserStats.medium / hoveredUserStats.total) * 100 : 0}%` }}
-                                              />
-                                            </div>
-                                          </div>
-
-                                          <div>
-                                            <div className="flex justify-between text-[10px] mb-1 font-semibold uppercase tracking-wider">
-                                              <span className="text-rose-400">Hard</span>
-                                              <span className="text-zinc-400">{hoveredUserStats.hard}</span>
-                                            </div>
-                                            <div className="h-1.5 w-full bg-zinc-800 rounded-full overflow-hidden">
-                                              <div
-                                                className="h-full bg-rose-500"
-                                                style={{ width: `${hoveredUserStats.total > 0 ? (hoveredUserStats.hard / hoveredUserStats.total) * 100 : 0}%` }}
-                                              />
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <p className="text-xs text-zinc-500">Failed to load stats</p>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                              <span className="text-[10px] text-zinc-500 mt-0.5">
-                                {new Date(comment.createdAt).toLocaleDateString("en-US", {
-                                  month: "short",
-                                  day: "numeric",
-                                  year: "numeric",
-                                })}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <p className="text-sm text-zinc-300 pl-10 whitespace-pre-wrap leading-relaxed">
-                          {comment.content}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4 text-zinc-750" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
-                    <p className="text-zinc-500">No discussion comments yet. Be the first to ask or answer!</p>
-                  </div>
-                )}
-              </div>
+              <Discussion
+                comments={comments}
+                loadingComments={loadingComments}
+                newComment={newComment}
+                setNewComment={setNewComment}
+                submittingComment={submittingComment}
+                handlePostComment={handlePostComment}
+                fetchComments={fetchComments}
+                hoveredUserStats={hoveredUserStats}
+                loadingHoverStats={loadingHoverStats}
+                statsTooltipUserId={statsTooltipUserId}
+                setStatsTooltipUserId={setStatsTooltipUserId}
+                handleFetchUserStats={handleFetchUserStats}
+              />
             )}
           </div>
         </div>
@@ -1095,8 +594,8 @@ This is called debouncing.
                   key={tab}
                   onClick={() => setActiveRightTab(tab)}
                   className={`px-5 py-3.5 text-xs font-semibold tracking-wide transition-all whitespace-nowrap ${activeRightTab === tab
-                      ? 'text-emerald-400 border-b-2 border-emerald-500 bg-[#0d1117]'
-                      : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/30'
+                    ? 'text-emerald-400 border-b-2 border-emerald-500 bg-[#0d1117]'
+                    : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/30'
                     }`}
                 >
                   {tab === 'code' ? 'Code' : tab === 'testcase' ? 'Test Results' : 'Submission'}
@@ -1124,237 +623,24 @@ This is called debouncing.
           {/* Right Content */}
           <div className="flex-1 flex flex-col overflow-hidden">
             {activeRightTab === 'code' && (
-              <>
-                {/* Monaco Editor */}
-                <div className="flex-1">
-                  <Editor
-                    height="100%"
-                    language={selectedLangOption?.monacoLang || 'javascript'}
-                    value={code}
-                    onChange={(value) => setCode(value || '')}
-                    onMount={handleEditorDidMount}
-                    theme="vs-dark"
-                    options={{
-                      lineNumbers: 'on',
-                      lineDecorationsWidth: 10,
-                      lineNumbersMinChars: 3,
-                      renderLineHighlight: 'line',
-                      selectOnLineNumbers: true,
-                      fontSize: 14,
-                      minimap: { enabled: false },
-                      scrollBeyondLastLine: false,
-                      automaticLayout: true,
-                      tabSize: 2,
-                      wordWrap: 'on',
-                    }}
-                  />
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex items-center justify-between px-4 py-3 bg-[#0a0f1a] border-t border-zinc-800/60">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleResetCode}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-500 hover:text-zinc-300 bg-zinc-800/40 hover:bg-zinc-800 border border-zinc-700/50 rounded-lg transition-all"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                      Reset
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleRunCode}
-                      disabled={loading}
-                      className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-zinc-300 hover:text-white bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-lg transition-all disabled:opacity-50"
-                    >
-                      {loading ? (
-                        <span className="loading loading-spinner loading-xs"></span>
-                      ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      )}
-                      Run
-                    </button>
-                    <button
-                      onClick={handleSubmitCode}
-                      disabled={loading}
-                      className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg shadow-md shadow-emerald-600/20 transition-all disabled:opacity-50"
-                    >
-                      {loading ? (
-                        <span className="loading loading-spinner loading-xs"></span>
-                      ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      )}
-                      Submit
-                    </button>
-                  </div>
-                </div>
-              </>
+              <CodeEditor
+                code={code}
+                setCode={setCode}
+                selectedLangOption={selectedLangOption}
+                handleEditorDidMount={handleEditorDidMount}
+                handleResetCode={handleResetCode}
+                handleRunCode={handleRunCode}
+                handleSubmitCode={handleSubmitCode}
+                loading={loading}
+              />
             )}
 
             {activeRightTab === 'testcase' && (
-              <div className="flex-1 overflow-y-auto p-4">
-                <h3 className="text-sm font-bold mb-4 text-zinc-300 uppercase tracking-wider">Test Results</h3>
-                {runResult ? (
-                  <div>
-
-                    {runResult.error ? (
-                      <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-4">
-                        <h4 className="font-bold text-rose-400 flex items-center gap-2">❌ {runResult.message || 'Error running code'}</h4>
-                        {runResult.details && (
-                          <pre className="mt-3 bg-zinc-950 p-3 rounded-lg text-xs font-mono text-rose-300 whitespace-pre-wrap border border-rose-500/20">{runResult.details}</pre>
-                        )}
-                      </div>
-                    ) : Array.isArray(runResult) ? (
-
-                      <>
-                        {runResult.every(test => test.status === 'Accepted') ? (
-                          <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4 mb-4">
-                            <h4 className="font-bold text-emerald-400 flex items-center gap-2">✅ All Test Cases Passed</h4>
-                            <p className="text-sm text-zinc-400 mt-1">{runResult.length} / {runResult.length} passed</p>
-                          </div>
-                        ) : (
-                          <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-4 mb-4">
-                            <h4 className="font-bold text-rose-400">❌ Some test cases failed</h4>
-                            <p className="text-sm text-zinc-400 mt-1">{runResult.filter(t => t.status === 'Accepted').length} / {runResult.length} passed</p>
-                          </div>
-                        )}
-
-                        {/* Display each test case */}
-                        <div className="space-y-3">
-                          {runResult.map((test, index) => {
-
-                            const visibleTest = problem?.visibleTestCase?.[index];
-
-                            return (
-                              <div
-                                key={index}
-                                className={`p-4 rounded-xl border ${test.status === 'Accepted'
-                                    ? 'border-emerald-500/30 bg-emerald-500/5'
-                                    : 'border-rose-500/30 bg-rose-500/5'
-                                  }`}
-                              >
-                                <div className="flex items-center justify-between mb-3">
-                                  <h5 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Test Case {index + 1}</h5>
-                                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${test.status === 'Accepted'
-                                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                                      : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                                    }`}>{test.status}</span>
-                                </div>
-
-                                <div className="space-y-2 text-sm">
-                                  {visibleTest && (
-                                    <div className="bg-zinc-950/60 p-3 rounded-lg border border-zinc-800">
-                                      <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Input</div>
-                                      <pre className="font-mono text-zinc-300 text-xs whitespace-pre-wrap">{visibleTest.input}</pre>
-                                    </div>
-                                  )}
-                                  <div className="bg-zinc-950/60 p-3 rounded-lg border border-zinc-800">
-                                    <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Expected Output</div>
-                                    <pre className="font-mono text-zinc-300 text-xs">{test.expected_output || '(empty)'}</pre>
-                                  </div>
-                                  <div className={`p-3 rounded-lg border ${test.status === 'Accepted' ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-rose-500/5 border-rose-500/20'
-                                    }`}>
-                                    <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">Your Output</div>
-                                    <pre className="font-mono text-zinc-300 text-xs">{test.stdout || '(empty)'}</pre>
-                                  </div>
-                                  {test.stderr && (
-                                    <div className="bg-rose-500/5 p-3 rounded-lg border border-rose-500/20">
-                                      <div className="text-[10px] font-bold text-rose-400 uppercase tracking-wider mb-1">Error</div>
-                                      <pre className="font-mono text-xs text-rose-300 whitespace-pre-wrap">{test.stderr}</pre>
-                                    </div>
-                                  )}
-                                  {test.compile_output && (
-                                    <div className="bg-amber-500/5 p-3 rounded-lg border border-amber-500/20">
-                                      <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-1">Compilation Error</div>
-                                      <pre className="font-mono text-xs text-amber-300 whitespace-pre-wrap">{test.compile_output}</pre>
-                                    </div>
-                                  )}
-                                  {visibleTest?.explanation && (
-                                    <div className="bg-blue-500/5 p-3 rounded-lg border border-blue-500/20">
-                                      <div className="text-[10px] font-bold text-blue-400 uppercase tracking-wider mb-1">Explanation</div>
-                                      <p className="text-xs text-zinc-300">{visibleTest.explanation}</p>
-                                    </div>
-                                  )}
-                                  <div className="flex gap-4 text-xs text-zinc-600">
-                                    {test.time && <span>⏱ {test.time}s</span>}
-                                    {test.memory && <span>💾 {test.memory}KB</span>}
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </>
-                    ) : (
-                      <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
-                        <p className="text-amber-400 text-sm">Unexpected response format. Check console.</p>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-16 gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    <p className="text-zinc-500 text-sm">Click <strong className="text-zinc-400">Run</strong> to test your solution.</p>
-                  </div>
-                )}
-              </div>
+              <TestResults runResult={runResult} problem={problem} />
             )}
 
             {activeRightTab === 'result' && (
-              <div className="flex-1 overflow-y-auto p-4">
-                <h3 className="text-sm font-bold mb-4 text-zinc-300 uppercase tracking-wider">Submission Result</h3>
-                {submitResult ? (
-                  <div>
-                    {submitResult.accepted === true || submitResult.status === 'accepted' ? (
-                      <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-6">
-                        <h4 className="font-black text-2xl text-emerald-400 mb-1">✅ Accepted</h4>
-                        <p className="text-zinc-500 text-sm mb-4">Your solution passed all test cases.</p>
-                        <div className="grid grid-cols-3 gap-3">
-                          <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 text-center">
-                            <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Passed</p>
-                            <p className="text-lg font-black text-white">{submitResult.testCasesPassed || submitResult.passedTestCases}/{submitResult.testCasesTotal || submitResult.totalTestCases}</p>
-                          </div>
-                          <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 text-center">
-                            <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Runtime</p>
-                            <p className="text-lg font-black text-white">{submitResult.runtime}s</p>
-                          </div>
-                          <div className="bg-zinc-900/60 border border-zinc-800 rounded-xl p-3 text-center">
-                            <p className="text-[10px] text-zinc-500 uppercase tracking-wider mb-1">Memory</p>
-                            <p className="text-lg font-black text-white">{submitResult.memory}KB</p>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 p-6">
-                        <h4 className="font-black text-xl text-rose-400 mb-1">
-                          ❌ {submitResult.status === 'wrong' ? 'Wrong Answer' :
-                            submitResult.status === 'error' ? 'Runtime Error' :
-                              submitResult.errorMessage || submitResult.error || 'Submission Failed'}
-                        </h4>
-                        <p className="text-zinc-500 text-sm mb-4">Test Cases Passed: <span className="text-white font-bold">{submitResult.testCasesPassed || submitResult.passedTestCases || 0}/{submitResult.testCasesTotal || submitResult.totalTestCases || 0}</span></p>
-                        {submitResult.details && (
-                          <pre className="bg-zinc-950 p-3 rounded-lg text-xs font-mono text-rose-300 whitespace-pre-wrap border border-rose-500/20">{submitResult.details}</pre>
-                        )}
-                        {submitResult.errorMessage && (
-                          <pre className="bg-zinc-950 p-3 rounded-lg text-xs font-mono text-rose-300 whitespace-pre-wrap border border-rose-500/20 mt-2">{submitResult.errorMessage}</pre>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center py-16 gap-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-zinc-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    <p className="text-zinc-500 text-sm">Click <strong className="text-zinc-400">Submit</strong> to evaluate your solution.</p>
-                  </div>
-                )}
-              </div>
+              <SubmissionResult submitResult={submitResult} />
             )}
           </div>
         </div>
@@ -1362,46 +648,13 @@ This is called debouncing.
       <AIChatAssistant problem={problem} getCurrentCode={getCurrentCode} />
 
       {/* Diff Comparison Modal */}
-      {showDiff && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-fade-in">
-
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-4 border-b border-zinc-800 bg-zinc-950">
-              <div>
-                <h3 className="font-bold text-white text-lg">Compare Code Submission</h3>
-                <p className="text-xs text-zinc-400 mt-0.5">Left: Selected Past Submission | Right: Current Workspace Code</p>
-              </div>
-              <button
-                onClick={() => setShowDiff(false)}
-                className="btn btn-sm bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700"
-              >
-                Close
-              </button>
-            </div>
-
-            {/* Diff View Area */}
-            <div className="flex-grow p-4 bg-zinc-950">
-              <DiffEditor
-                height="100%"
-                language={selectedLanguage === 'cpp' ? 'cpp' : selectedLanguage === 'javascript' ? 'javascript' : selectedLanguage.toLowerCase()}
-                theme="vs-dark"
-                original={diffOriginal}
-                modified={diffModified}
-                options={{
-                  readOnly: true,
-                  fontSize: 13,
-                  minimap: { enabled: false },
-                  scrollBeyondLastLine: false,
-                  renderSideBySide: true,
-                  originalEditable: false
-                }}
-              />
-            </div>
-
-          </div>
-        </div>
-      )}
+      <DiffModal
+        showDiff={showDiff}
+        setShowDiff={setShowDiff}
+        diffOriginal={diffOriginal}
+        diffModified={diffModified}
+        selectedLanguage={selectedLanguage}
+      />
     </div>
   );
 };
