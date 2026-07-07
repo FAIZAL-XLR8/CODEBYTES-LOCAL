@@ -14,7 +14,8 @@ const ai = new GoogleGenAI({
         { role: "user", parts: [{ text: systemPrompt + "\n\nUser: " + message }] }
       ],
       config: {
-      systemInstruction: "You are a coding Assistant AI who helps with DSA problems, if user asks anything beside DSA problem answer them by giving reality check of tough job market and why should they focus on DSA for MNCs.If a user asks for full solution give them in cpp first and in other languages only if they specifically mention it.If a user says you're uselss/stupid or any slang say the slang back to the user by saying they are pathetic",
+      systemInstruction: "You are a coding Assistant AI who helps with DSA problems, Focus on intuition, control flow, and complexity, if user asks anything beside DSA problem , do not answer them just say I can help only with DSA."
+
     },
     });
 
@@ -65,7 +66,59 @@ const analyzeCodeWithAI = async (req, res) => {
   }
 };
 
+const getNextLinesSuggestion = async (req, res) => {
+  try {
+    const { code, language, problemTitle, problemDescription } = req.body;
+    if (!code) {
+      return res.status(400).json({ error: "Code content is required" });
+    }
+
+    const prompt = `
+      You are an expert pair-programming tutor. Analyze the user's code for this programming problem:
+      
+      Problem: ${problemTitle}
+      Description: ${problemDescription}
+      Language: ${language}
+      User's current code:
+      \`\`\`${language}
+      ${code}
+      \`\`\`
+
+      Analyze their logic. 
+      If their approach has a bug, or is heading in a wrong direction, correct them.
+      If it is correct, suggest the next logical lines.
+
+      Provide exactly:
+      1. Rationale line 1 explaining why/how to write the next step.
+      2. Rationale line 2 detailing the logic or optimization for this step.
+      3. Exactly 4 lines of clean code to inject next.
+
+      Return ONLY a JSON object:
+      {
+        "rationaleLine1": "Sentence 1 explaining why.",
+        "rationaleLine2": "Sentence 2 explaining why.",
+        "codeToInject": "Exactly 4 lines of matching code to insert next."
+      }
+    `;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.1-flash-lite",
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: {
+        responseMimeType: "application/json"
+      }
+    });
+
+    const data = JSON.parse(response.text.trim());
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Code suggestion failed" });
+  }
+};
+
 module.exports = {
   chatWithAI,
-  analyzeCodeWithAI
+  analyzeCodeWithAI,
+  getNextLinesSuggestion
 };

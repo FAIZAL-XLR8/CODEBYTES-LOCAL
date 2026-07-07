@@ -57,6 +57,11 @@ const ProblemPage = () => {
   const [hoveredUserStats, setHoveredUserStats] = useState(null);
   const [loadingHoverStats, setLoadingHoverStats] = useState(false);
   const [statsTooltipUserId, setStatsTooltipUserId] = useState(null);
+
+  // AI Code Suggestor States
+  const [loadingSuggest, setLoadingSuggest] = useState(false);
+  const [suggestionData, setSuggestionData] = useState(null);
+
   const { problemId } = useParams();
   const dispatch = useDispatch();
   // Get from Redux
@@ -450,6 +455,66 @@ This is called debouncing.
       setActiveRightTab('result');
     }
   };
+
+  /* SUGGEST CODE (NEXT LINES PREVIEW) */
+  const handleSuggestCode = async () => {
+    setLoadingSuggest(true);
+    setSuggestionData(null);
+    try {
+      const currentCode = getCurrentCode() || code;
+      const response = await axiosClient.post("/ai/suggest", {
+        code: currentCode,
+        language: selectedLanguage,
+        problemTitle: problem?.title,
+        problemDescription: problem?.description || problem?.problemStatement,
+      });
+
+      if (response.data && response.data.codeToInject) {
+        setSuggestionData(response.data);
+      } else {
+        toast.error("AI couldn't generate a suggestion for the current code state.");
+      }
+    } catch (error) {
+      console.error('Error getting code suggestion:', error);
+      toast.error(error.response?.data?.error || 'Failed to fetch suggestion');
+    } finally {
+      setLoadingSuggest(false);
+    }
+  };
+
+  /* ACCEPT CODE SUGGESTION AND INJECT */
+  const acceptSuggestion = () => {
+    if (!suggestionData || !suggestionData.codeToInject) return;
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const selection = editor.getSelection();
+    // Insert text at cursor range
+    const range = {
+      startLineNumber: selection.startLineNumber,
+      startColumn: selection.startColumn,
+      endLineNumber: selection.endLineNumber,
+      endColumn: selection.endColumn
+    };
+
+    const textToInsert = suggestionData.codeToInject.startsWith('\n') 
+      ? suggestionData.codeToInject 
+      : '\n' + suggestionData.codeToInject;
+
+    const edit = {
+      range: range,
+      text: textToInsert,
+      forceMoveMarkers: true
+    };
+
+    // Execute edit so it supports Undo (Ctrl+Z)
+    editor.executeEdits("ai-suggestion-inject", [edit]);
+    editor.focus();
+    
+    // Clear suggestion state
+    setSuggestionData(null);
+    toast.success("AI suggestion inserted!");
+  };
   /* LANGUAGE OPTIONS */
   const languageOptions = [
     { value: 'cpp', label: 'C++', monacoLang: 'cpp' },
@@ -632,6 +697,11 @@ This is called debouncing.
                 handleRunCode={handleRunCode}
                 handleSubmitCode={handleSubmitCode}
                 loading={loading}
+                handleSuggestCode={handleSuggestCode}
+                loadingSuggest={loadingSuggest}
+                suggestionData={suggestionData}
+                setSuggestionData={setSuggestionData}
+                acceptSuggestion={acceptSuggestion}
               />
             )}
 
