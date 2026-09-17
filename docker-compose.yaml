@@ -1,0 +1,88 @@
+networks:
+  micro-networks:
+    driver: bridge
+
+volumes:
+  backend-node-modules:
+  frontend-node-modules:
+  mongo-data:
+  redis-data:
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: codebytes_mongodb
+    restart: unless-stopped
+    networks:
+      - micro-networks
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: codebytes_redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    networks:
+      - micro-networks
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./BACKEND
+    image: codebytes_backend
+    pull_policy: build
+    container_name: codebytes_backend
+    restart: unless-stopped
+    networks:
+      - micro-networks
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./BACKEND/.env
+    environment:
+      - PORT=3000
+      - CONNECT_DB=mongodb://mongodb:27017/codebytes
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_KEY=
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./BACKEND:/app
+      - backend-node-modules:/app/node_modules
+
+  frontend:
+    build: ./FRONTEND
+    image: codebytes_frontend
+    pull_policy: build
+    container_name: codebytes_frontend
+    restart: unless-stopped
+    networks:
+      - micro-networks
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:3000
+    depends_on:
+      - backend
+    volumes:
+      - ./FRONTEND:/app
+      - frontend-node-modules:/app/node_modules
