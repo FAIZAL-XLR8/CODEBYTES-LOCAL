@@ -3,8 +3,6 @@ require("dotenv").config();
 const express = require("express");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
-const path = require("path");
-const fs = require("fs");
 
 const userCollection = require("./Schemas/userSchema");
 const apiLimiter = require("./RATE-LIMITERS/apiLimiter");
@@ -26,12 +24,20 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
   process.env.FRONTEND_URL,
-].filter(Boolean);
+]
+  .filter(Boolean)
+  .map((url) => url.replace(/\/$/, ""));
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.some((ao) => origin.startsWith(ao))) {
+      if (!origin) return callback(null, true);
+      const cleanOrigin = origin.replace(/\/$/, "");
+      if (
+        allowedOrigins.some(
+          (ao) => cleanOrigin === ao || cleanOrigin.startsWith(ao)
+        )
+      ) {
         callback(null, true);
       } else {
         callback(new Error(`Origin ${origin} not allowed by CORS`));
@@ -51,8 +57,16 @@ app.use((req, res, next) => {
   next();
 });
 
-// ================= API ROUTES =================
+// ================= HEALTH CHECK / ROOT (For ALB & ECS) =================
+app.get("/", (req, res) => {
+  res.status(200).json({ status: "ok", message: "CodeBytes API is running" });
+});
 
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "healthy" });
+});
+
+// ================= API ROUTES =================
 app.use("/submission", apiLimiter, submitRoute);
 app.use("/user", authRoute);
 app.use("/problem", problemRoute);
@@ -60,29 +74,9 @@ app.use("/ai", aiRouter);
 app.use("/video", videoRouter);
 app.use("/discussion", discussionRoute);
 
-// ================= FRONTEND =================
-
-const frontendPath = path.join(__dirname, "../../FRONTEND/dist");
-
-console.log("Frontend Path:", frontendPath);
-console.log("Frontend Exists:", fs.existsSync(frontendPath));
-console.log(
-  "Index Exists:",
-  fs.existsSync(path.join(frontendPath, "index.html"))
-);
-
-app.use(express.static(frontendPath));
-
-app.use((req, res, next) => {
-  if (req.path.startsWith("/problem") ||
-      req.path.startsWith("/user") ||
-      req.path.startsWith("/submission") ||
-      req.path.startsWith("/ai") ||
-      req.path.startsWith("/video") ||
-      req.path.startsWith("/discussion")) {
-    return res.status(404).json({ error: "API route not found" });
-  }
-  res.sendFile(path.join(frontendPath, "index.html"));
+// 404 handler for unknown routes
+app.use((req, res) => {
+  res.status(404).json({ error: "API route not found" });
 });
 
 // ================= SERVER =================

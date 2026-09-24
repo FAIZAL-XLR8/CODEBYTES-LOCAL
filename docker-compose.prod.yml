@@ -1,0 +1,43 @@
+networks:
+  micro-networks:
+    driver: bridge
+
+services:
+  backend:
+    build:
+      context: ./BACKEND
+      dockerfile: Dockerfile
+    # Set your ECR image URI here (e.g., <aws_account_id>.dkr.ecr.<region>.amazonaws.com/codebytes-backend:latest)
+    image: ${BACKEND_IMAGE:-codebytes_backend:latest}
+    container_name: codebytes_backend
+    restart: always
+    networks:
+      - micro-networks
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./BACKEND/.env
+    environment:
+      - PORT=3000
+    # MongoDB Atlas and Redis Cloud credentials are loaded directly from ./BACKEND/.env
+
+  frontend:
+    build:
+      context: ./FRONTEND
+      dockerfile: Dockerfile
+    # Set your ECR image URI here (e.g., <aws_account_id>.dkr.ecr.<region>.amazonaws.com/codebytes-frontend:latest)
+    image: ${FRONTEND_IMAGE:-codebytes_frontend:latest}
+    container_name: codebytes_frontend
+    restart: always
+    networks:
+      - micro-networks
+    ports:
+      - "5173:5173"
+      # To expose frontend on standard HTTP port 80, uncomment:
+      # - "80:5173"
+    environment:
+      # Point to your production domain or EC2 Public IP (NO localhost)
+      # e.g., http://<EC2_PUBLIC_IP>:3000 or https://api.yourdomain.com
+      - VITE_API_URL=${VITE_API_URL}
+    depends_on:
+      - backend
