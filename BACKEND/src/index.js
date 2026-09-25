@@ -3,6 +3,7 @@ require("dotenv").config();
 const express = require("express");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
+const path = require("path");
 
 const userCollection = require("./Schemas/userSchema");
 const apiLimiter = require("./RATE-LIMITERS/apiLimiter");
@@ -38,10 +39,10 @@ app.use(
           (ao) => cleanOrigin === ao || cleanOrigin.startsWith(ao)
         )
       ) {
-        callback(null, true);
-      } else {
-        callback(new Error(`Origin ${origin} not allowed by CORS`));
+        return callback(null, true);
       }
+      // Allow any incoming origin in production/ALB
+      return callback(null, true);
     },
     credentials: true,
   })
@@ -57,11 +58,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// ================= HEALTH CHECK / ROOT (For ALB & ECS) =================
-app.get("/", (req, res) => {
-  res.status(200).json({ status: "ok", message: "CodeBytes API is running" });
-});
-
+// ================= HEALTH CHECK (For ALB & ECS) =================
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "healthy" });
 });
@@ -74,7 +71,26 @@ app.use("/ai", aiRouter);
 app.use("/video", videoRouter);
 app.use("/discussion", discussionRoute);
 
-// 404 handler for unknown routes
+// ================= SERVE REACT FRONTEND =================
+const publicPath = path.join(__dirname, "../public");
+app.use(express.static(publicPath));
+
+// React Router SPA fallback for all remaining GET requests
+app.use((req, res, next) => {
+  if (req.method === "GET") {
+    return res.sendFile(path.join(publicPath, "index.html"), (err) => {
+      if (err) {
+        res.status(200).json({
+          status: "ok",
+          message: "CodeBytes API is running. (Frontend build not found in public/)",
+        });
+      }
+    });
+  }
+  next();
+});
+
+// 404 handler for unknown API routes (non-GET or unmatched)
 app.use((req, res) => {
   res.status(404).json({ error: "API route not found" });
 });

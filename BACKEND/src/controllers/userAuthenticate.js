@@ -83,11 +83,12 @@ const register = async (req, res) => {
         role : user.role
       };
       
+      const isSecure = process.env.COOKIE_SECURE === "true";
       res.cookie("token", token, {
         maxAge: 30 * 60 * 1000,
         httpOnly: true,
-        secure: true,
-        sameSite: "none",
+        secure: isSecure,
+        sameSite: isSecure ? "none" : "lax",
       });
       res.status(200).json({ user: replyUser, message: "Login successful!" });
     } else {
@@ -102,12 +103,22 @@ const register = async (req, res) => {
   const logout = async (req, res) => {
     try {
       const { token } = req.cookies;
-      const payload = jwt.decode(token);
-      await redisClient.set(`token:${token}`, "blocked");
-      await redisClient.expireAt(`token:${token}`, payload.exp);
+      if (token) {
+        const payload = jwt.decode(token);
+        if (payload?.exp) {
+          await redisClient.set(`token:${token}`, "blocked");
+          await redisClient.expireAt(`token:${token}`, payload.exp);
+        }
+      }
+      const isSecure = process.env.COOKIE_SECURE === "true";
+      res.clearCookie("token", {
+        httpOnly: true,
+        secure: isSecure,
+        sameSite: isSecure ? "none" : "lax",
+      });
       res.status(200).send("logged out!");
     } catch (err) {
-      res.send(err.message);
+      res.status(400).send(err.message);
     }
   };
   const getProfile = async (req, res) => {
